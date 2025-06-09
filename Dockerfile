@@ -6,7 +6,11 @@ COPY web/package.json .
 COPY web/yarn.lock .
 
 RUN yarn config set disable-self-update-check true
-RUN yarn --frozen-lockfile --non-interactive
+RUN yarn config set network-timeout 600000
+RUN yarn config set registry https://registry.npmmirror.com/
+RUN yarn config set lastUpdateCheck 9999999999999
+RUN yarn config set strict-ssl false
+RUN yarn --frozen-lockfile --non-interactive --network-concurrency 1
 
 COPY ./web .
 COPY ./VERSION .
