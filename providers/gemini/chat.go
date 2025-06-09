@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"done-hub/common"
+	"done-hub/common/config"
 	"done-hub/common/requester"
 	"done-hub/common/utils"
 	"done-hub/providers/base"
@@ -166,9 +167,15 @@ func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*GeminiChatReq
 
 	if request.Reasoning != nil {
 		geminiRequest.GenerationConfig.ThinkingConfig = &ThinkingConfig{
-			ThinkingBudget:  request.Reasoning.MaxTokens,
-			IncludeThoughts: request.IncludeThoughts,
+			ThinkingBudget: &request.Reasoning.MaxTokens,
 		}
+	}
+
+	if config.GeminiSettingsInstance.GetOpenThink(request.Model) {
+		if geminiRequest.GenerationConfig.ThinkingConfig == nil {
+			geminiRequest.GenerationConfig.ThinkingConfig = &ThinkingConfig{}
+		}
+		geminiRequest.GenerationConfig.ThinkingConfig.IncludeThoughts = true
 	}
 
 	functions := request.GetFunctions()
