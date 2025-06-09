@@ -29,15 +29,21 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - 支持 GCP-Vertex 渠道的 /gemini 原生请求
 - 支持 GCP-Vertex 渠道的 global 区域
 - 支持 GCP-Vertex 渠道的额外参数透传
-- 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图
+- 支持 GCP-Vertex 渠道的生图模型，并兼容 OpenAI 生图接口
+- 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 支持批量删除渠道
 - 新增分析功能中的 RPM TPM 展示
-- 新增充值返利功能（固定/百分比）
-- 新增空回复是否计费配置
+- 新增充值返利功能（可选类型:固定/百分比）
+- 新增空回复是否计费配置（默认:计费）
 - 修复编辑模型价格类型无效的 bug
 - ...
 
 
+## 部署
+
+> 按照原版部署教程将镜像替换为 `deanxv/done-hub` 即可。
+
+> 数据库兼容，原版可直接拉取此镜像迁移。
 
 ## 感谢
 
