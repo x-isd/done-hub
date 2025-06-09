@@ -2,9 +2,12 @@
    <strong>中文</strong> | <a href="./README.en.md">English</a>
 </p>
 
-<div align="center">
+<p align="center">
+   <picture>
+    <img style="width: 80%" src="https://pic1.imgdb.cn/item/6846de0c58cb8da5c83eb011.png" alt="image.png">   </picture>
+</p>
 
-# Done Hub
+<div align="center">
 
 _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发而来的_
 
