@@ -4,7 +4,8 @@
 
 <p align="center">
    <picture>
-    <img style="width: 80%" src="https://pic1.imgdb.cn/item/6846de0c58cb8da5c83eb011.png" alt="image.png">   </picture>
+   <img style="width: 80%" src="https://pic1.imgdb.cn/item/6846e33158cb8da5c83eb1eb.png" alt="image__3_-removebg-preview.png"> 
+    </picture>
 </p>
 
 <div align="center">
