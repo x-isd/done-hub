@@ -38,6 +38,9 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - ...
 
 
+## 部署
+
+> 按照原版部署教程将镜像替换为 `deanxv/done-hub` 即可。
 
 ## 感谢
 
