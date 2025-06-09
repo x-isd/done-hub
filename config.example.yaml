@@ -17,7 +17,7 @@ logs:
 
 # 数据库设置
 sql_dsn: "" # 设置之后将使用指定数据库而非 SQLite，请使用 MySQL 或 PostgreSQL
-sqlite_path: "one-api.db" # sqlite 数据库文件路径
+sqlite_path: "done-hub.db" # sqlite 数据库文件路径
 sqlite_busy_timeout: 3000 # sqlite 数据库繁忙超时时间，单位为毫秒，默认为 3000。
 redis_conn_string: "" # 设置之后将使用指定 Redis 作为缓存，格式为 "redis://default:redispw@localhost:49153"，未设置则不使用 Redis。
 redis_db: 0 # redis 数据库，未设置则不使用 Redis。
