@@ -2,15 +2,10 @@ FROM node:18 as builder
 
 WORKDIR /build
 
-ENV YARN_NETWORK_TIMEOUT=300000
-ENV YARN_NETWORK_CONCURRENCY=1
-ENV YARN_RETRY_TIMES=3
+COPY web/package.json .
+COPY web/yarn.lock .
 
-COPY web/package.json web/yarn.lock ./
-
-RUN yarn config set registry https://registry.yarnpkg.com/ && \
-    yarn --frozen-lockfile --network-timeout 300000 || \
-    (sleep 3 && yarn --frozen-lockfile --network-timeout 300000)
+RUN yarn --frozen-lockfile
 
 COPY ./web .
 COPY ./VERSION .
@@ -25,7 +20,7 @@ ENV GO111MODULE=on \
 
 WORKDIR /build
 ADD go.mod go.sum ./
-RUN go mod download || (sleep 3 && go mod download)
+RUN go mod download
 COPY . .
 COPY --from=builder /build/build ./web/build
 RUN go build -ldflags "-s -w -X 'done-hub/common.Version=$(cat VERSION)' -extldflags '-static'" -o done-hub
