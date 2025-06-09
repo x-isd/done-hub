@@ -5,7 +5,8 @@ WORKDIR /build
 COPY web/package.json .
 COPY web/yarn.lock .
 
-RUN yarn --frozen-lockfile
+RUN yarn config set disable-self-update-check true
+RUN yarn --frozen-lockfile --non-interactive
 
 COPY ./web .
 COPY ./VERSION .
