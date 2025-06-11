@@ -841,7 +841,8 @@
         "retryTimeOut": {
           "label": "Retry Timeout (seconds)",
           "placeholder": "Retry Timeout (seconds)"
-        }
+        },
+        "emptyResponseBilling": "Empty Response Billing"
       },
       "logSettings": {
         "clearLogs": "Clear Historical Logs",
@@ -972,6 +973,14 @@
           "placeholder": "Please enter the default MaxToken quantity in JSON format, where \"default\" represents the default value. For example: {\"default\": 1000, \"claude-3-7-sonnet-latest\": 128000}"
         },
         "save": "Save Claude's settings"
+      },
+      "geminiSettings": {
+        "title": "Gemini Settings",
+        "geminiOpenThink": {
+          "label": "Models with reasoning output enabled",
+          "placeholder": "Please enter the models that need reasoning output enabled in JSON format, for example: {\"gemini-2.5-pro-preview-05-06\": true}"
+        },
+        "save": "Save Gemini Settings"
       }
     },
     "otherSettings": {

@@ -830,7 +830,8 @@
         "retryTimeOut": {
           "label": "重試超時時間(秒)",
           "placeholder": "重試超時時間(秒)"
-        }
+        },
+        "emptyResponseBilling": "空回覆計費"
       },
       "logSettings": {
         "clearLogs": "清理歷史日誌",
@@ -903,6 +904,16 @@
           "label": "邀請新用戶獎勵額度",
           "placeholder": "例如：2000"
         },
+        "rechargeRewardType": {
+          "label": "充值返利類型",
+          "fixed": "固定",
+          "percentage": "百分比"
+        },
+        "rechargeRewardValue": {
+          "label": "充值返利值",
+          "fixedPlaceholder": "例如：2000",
+          "percentagePlaceholder": "例如：10"
+        },
         "quotaForNewUser": {
           "label": "新用戶初始額度",
           "placeholder": "例如：100"
@@ -952,6 +963,14 @@
         },
         "save": "保留Claude設置",
         "title": "克勞德設置"
+      },
+      "geminiSettings": {
+        "title": "Gemini設置",
+        "geminiOpenThink": {
+          "label": "開啟輸出推理的模型",
+          "placeholder": "請輸入需要開啟推理輸出的模型，JSON格式，例如：{\"gemini-2.5-pro-preview-05-06\": true}"
+        },
+        "save": "保存Gemini設置"
       }
     },
     "otherSettings": {

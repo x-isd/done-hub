@@ -530,7 +530,7 @@ const OperationSetting = () => {
               }
             />
             <FormControlLabel
-              label="空回复计费"
+              label={t('setting_index.operationSettings.generalSettings.emptyResponseBilling')}
               control={
                 <Checkbox
                   checked={dataLoaded ? inputs.EmptyResponseBillingEnabled === 'true' : false}

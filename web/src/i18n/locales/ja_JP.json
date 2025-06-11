@@ -829,7 +829,8 @@
         "retryTimeOut": {
           "label": "再試行のタイムアウト時間（秒）",
           "placeholder": "再試行のタイムアウト時間（秒）"
-        }
+        },
+        "emptyResponseBilling": "空応答課金"
       },
       "logSettings": {
         "clearLogs": "履歴ログをクリア",
@@ -902,6 +903,16 @@
           "label": "招待者への報酬クォータ",
           "placeholder": "例：2000"
         },
+        "rechargeRewardType": {
+          "label": "チャージ返利タイプ",
+          "fixed": "固定",
+          "percentage": "パーセンテージ"
+        },
+        "rechargeRewardValue": {
+          "label": "チャージ返利値",
+          "fixedPlaceholder": "例：2000",
+          "percentagePlaceholder": "例：10"
+        },
         "quotaForNewUser": {
           "label": "新規ユーザーの初期クォータ",
           "placeholder": "例：100"
@@ -951,6 +962,14 @@
         },
         "save": "クロードの設定を保存します",
         "title": "クロードの設定"
+      },
+      "geminiSettings": {
+        "title": "Gemini設定",
+        "geminiOpenThink": {
+          "label": "推論出力を有効にするモデル",
+          "placeholder": "推論出力を有効にするモデルをJSON形式で入力してください。例：{\"gemini-2.5-pro-preview-05-06\": true}"
+        },
+        "save": "Gemini設定を保存"
       }
     },
     "otherSettings": {
