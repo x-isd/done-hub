@@ -29,6 +29,7 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - 支持 Vertex-AI 渠道的 /gemini 原生请求
 - 支持 Vertex-AI 渠道的 global 区域
 - 支持 Vertex-AI 渠道的生图模型，并兼容 OpenAI 生图接口
+- 支持 Vertex-AI 渠道对齐 OpenAI 接口的视频解析请求
 - 支持 /gemini 原生生图请求的额外参数透传
 - 支持 /gemini 原生对话请求的思考参数
 - 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
