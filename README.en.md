@@ -2,13 +2,13 @@
    <strong>English</strong> | <a href="./README.md">中文</a>
 </p>
 
-<div align="center">
-
 <p align="center">
    <picture>
    <img style="width: 80%" src="https://pic1.imgdb.cn/item/6846e33158cb8da5c83eb1eb.png" alt="image__3_-removebg-preview.png"> 
     </picture>
 </p>
+
+<div align="center">
 
 _This project is a secondary development based on [one-hub](https://github.com/MartialBE/one-api)_
 
@@ -24,21 +24,31 @@ _This project is a secondary development based on [one-hub](https://github.com/M
 
 ## Current Differences from the Original Version
 
-- Support for Gemini model thinking process
-- Support for /gemini native requests on GCP-Vertex channel
-- Support for global region on GCP-Vertex channel
-- Support for additional parameter pass-through on GCP-Vertex channel
-- Support for gemini-2.0-flash-preview-image-generation text-to-image/image-to-image
+- Support for Gemini model to display thinking process
+- Support for /gemini native requests on Vertex-AI channel
+- Support for global region on Vertex-AI channel
+- Support for image generation models on Vertex-AI channel, compatible with OpenAI image generation API
+- Support for video parsing requests on Vertex-AI channel aligned with OpenAI API
+- Support for additional parameter pass-through in /gemini native image generation requests
+- Support for thinking parameters in /gemini native conversation requests
+- Support for gemini-2.0-flash-preview-image-generation text-to-image/image-to-image, compatible with OpenAI conversation API
 - Support for batch deletion of channels
 - Added RPM TPM display in analytics functionality
-- Added recharge rebate feature (fixed/percentage)
-- Added configuration for whether empty replies are billable
+- Added invitation recharge rebate feature (optional types: fixed/percentage)
+- Added configuration for whether empty replies are billable (default: billable)
 - Fixed bug where editing model price type was ineffective
+- Removed meaningless original price related styles in log functionality
 - ...
+
+## Deployment
+
+> Follow the original deployment tutorial and replace the image with `deanxv/done-hub`.
+
+> Database compatible, original version can directly pull this image for migration.
 
 ## Acknowledgements
 
-- This program uses the following open source projects:
-    - [one-hub](https://github.com/MartialBE/one-api) as the foundation for this project
+- This program uses the following open source projects
+  - [one-hub](https://github.com/MartialBE/one-api) as the foundation for this project
 
 Thanks to the authors and contributors of the above projects
