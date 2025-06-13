@@ -144,7 +144,7 @@ func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*ClaudeRequest
 
 	systemMessage := ""
 	mgsLen := len(request.Messages) - 1
-	isThink := (request.OneOtherArg == "thinking" || request.Reasoning != nil)
+	isThink := request.OneOtherArg == "thinking" || request.Reasoning != nil
 
 	for index, msg := range request.Messages {
 		if isThink && index == mgsLen && (msg.Role == types.ChatMessageRoleAssistant || msg.Role == types.ChatMessageRoleSystem) {
@@ -459,9 +459,7 @@ func (h *ClaudeStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan strin
 
 	case "content_block_delta":
 		h.convertToOpenaiStream(&claudeResponse, dataChan)
-		h.Usage.CompletionTokens += common.CountTokenText(claudeResponse.Delta.Text, h.Request.Model)
-		h.Usage.TotalTokens = h.Usage.PromptTokens + h.Usage.CompletionTokens
-
+		h.Usage.TextBuilder.WriteString(claudeResponse.Delta.Text)
 	case "content_block_start":
 		h.convertToOpenaiStream(&claudeResponse, dataChan)
 

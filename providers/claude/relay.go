@@ -2,7 +2,6 @@ package claude
 
 import (
 	"bytes"
-	"done-hub/common"
 	"done-hub/common/requester"
 	"done-hub/types"
 	"encoding/json"
@@ -119,8 +118,7 @@ func (h *ClaudeRelayStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan 
 		ClaudeUsageMerge(&claudeResponse.Usage, h.StartUsage)
 		ClaudeUsageToOpenaiUsage(&claudeResponse.Usage, h.Usage)
 	case "content_block_delta":
-		h.Usage.CompletionTokens += common.CountTokenText(claudeResponse.Delta.Text, h.ModelName)
-		h.Usage.TotalTokens = h.Usage.PromptTokens + h.Usage.CompletionTokens
+		h.Usage.TextBuilder.WriteString(claudeResponse.Delta.Text)
 	}
 
 	dataChan <- rawStr

@@ -1,54 +1,63 @@
-import { Box, IconButton, Typography } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { renderQuota } from 'utils/common';
-import PropTypes from 'prop-types';
+import { Box, IconButton, Typography } from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import { renderQuota } from 'utils/common'
+import PropTypes from 'prop-types'
 
 // Helper function to calculate the original quota based on actual price and group ratio
 export function calculateOriginalQuota(item) {
   // If we don't have the necessary data, return the metadata value or 0
   if (!item?.quota || !item?.metadata?.group_ratio) {
-    return item.metadata?.original_quota || item.metadata?.origin_quota || 0;
+    return item.metadata?.original_quota || item.metadata?.origin_quota || 0
   }
 
-  const quota = item.quota || 0;
-  const groupRatio = item.metadata?.group_ratio || 1;
+  const quota = item.quota || 0
+  const groupRatio = item.metadata?.group_ratio || 1
 
   // Simple formula: original price = actual price / group ratio
   // Avoid division by zero
   if (groupRatio === 0) {
-    return quota;
+    return quota
   }
 
   // Calculate original quota by dividing actual quota by group ratio
-  const calculatedOriginalQuota = quota / groupRatio;
+  const calculatedOriginalQuota = quota / groupRatio
 
   // Return the calculated original quota or the metadata value if the calculation is 0
-  return calculatedOriginalQuota || item.metadata?.original_quota || item.metadata?.origin_quota || 0;
+  return calculatedOriginalQuota || item.metadata?.original_quota || item.metadata?.origin_quota || 0
 }
 
 // QuotaWithDetailRow is only responsible for the price in the main row and the small triangle
 export default function QuotaWithDetailRow({ item, open, setOpen }) {
+  const groupRatio = item?.metadata?.group_ratio || 1
   // Calculate the original quota based on the formula
-  // const originalQuota = calculateOriginalQuota(item);
+  const originalQuota = calculateOriginalQuota(item)
   // Ensure quota has a fallback value
-  const quota = item.quota || 0;
+  const quota = item.quota || 0
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Box onClick={() => setOpen((o) => !o)} sx={{ display: 'flex', flexDirection: 'column', mr: 1, cursor: 'pointer' }}>
-        {/* 注释掉原始计费的显示 */}
-        {/* <Typography
-          variant="caption"
-          sx={{
-            color: (theme) => theme.palette.text.secondary,
-            textDecoration: 'line-through',
-            fontSize: 12
-          }}
-        >
-          {renderQuota(originalQuota, 6)}
-        </Typography> */}
-        <Typography sx={{ color: (theme) => theme.palette.success.main, fontWeight: 500, fontSize: 13 }}>
-          {renderQuota(quota, 6)}
-        </Typography>
+      <Box onClick={() => setOpen((o) => !o)}
+           sx={{ display: 'flex', flexDirection: 'column', mr: 1, cursor: 'pointer' }}>
+        {groupRatio < 1 ? (
+          <>
+            <Typography
+              variant="caption"
+              sx={{
+                color: (theme) => theme.palette.text.secondary,
+                textDecoration: 'line-through',
+                fontSize: 12
+              }}
+            >
+              {renderQuota(originalQuota, 6)}
+            </Typography>
+            <Typography sx={{ color: (theme) => theme.palette.success.main, fontWeight: 500, fontSize: 13 }}>
+              {renderQuota(quota, 6)}
+            </Typography>
+          </>
+        ) : (
+          <Typography sx={{ color: (theme) => theme.palette.success.main, fontWeight: 500, fontSize: 13 }}>
+            {renderQuota(quota, 6)}
+          </Typography>
+        )}
       </Box>
       <IconButton
         size="small"
@@ -68,7 +77,7 @@ export default function QuotaWithDetailRow({ item, open, setOpen }) {
         />
       </IconButton>
     </Box>
-  );
+  )
 }
 
 QuotaWithDetailRow.propTypes = {
@@ -82,4 +91,4 @@ QuotaWithDetailRow.propTypes = {
   }).isRequired,
   open: PropTypes.bool.isRequired,
   setOpen: PropTypes.func.isRequired
-};
+}

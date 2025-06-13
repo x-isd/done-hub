@@ -129,6 +129,12 @@ func RelayHandler(relay RelayBaseInterface) (err *types.OpenAIErrorWithStatusCod
 		return
 	}
 
+	// 最后处理流式中断时计算tokens
+	if usage.CompletionTokens == 0 && usage.TextBuilder.Len() > 0 {
+		usage.CompletionTokens = common.CountTokenText(usage.TextBuilder.String(), relay.getModelName())
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+
 	quota.SetFirstResponseTime(relay.GetFirstResponseTime())
 
 	quota.Consume(relay.getContext(), usage, relay.IsStream())
@@ -170,7 +176,7 @@ func applyPreMappingBeforeRequest(c *gin.Context) {
 	c.Request.Body.Close()
 
 	// Use defer to ensure request body is always restored
-	var finalBodyBytes []byte = bodyBytes // default to original body
+	var finalBodyBytes = bodyBytes // default to original body
 	defer func() {
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(finalBodyBytes))
 	}()

@@ -20,7 +20,7 @@ var (
 	kvCache       *marshaler.Marshaler
 	ctx           = context.Background()
 	sfGroup       singleflight.Group
-	CacheTimeout  = 1 * time.Second
+	CacheTimeout  = 5 * time.Second
 	CacheNotFound = errors.New("cache not found")
 )
 
@@ -88,6 +88,9 @@ func GetOrSetCache[T any](key string, expiration time.Duration, fn func() (T, er
 		}
 		return v, r.Err
 	case <-t:
+		if v2, err2 := GetCache[T](key); err2 == nil {
+			return v2, nil
+		}
 		return *new(T), errors.New("超时")
 	}
 }

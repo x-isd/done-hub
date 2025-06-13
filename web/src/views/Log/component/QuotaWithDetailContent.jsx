@@ -1,68 +1,91 @@
-import { Box, Typography } from '@mui/material';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import PercentIcon from '@mui/icons-material/Percent';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import CalculateIcon from '@mui/icons-material/Calculate';
-import Decimal from 'decimal.js';
-import { renderQuota } from 'utils/common';
-import { calculateOriginalQuota } from './QuotaWithDetailRow';
-import { useTranslation } from 'react-i18next';
-import PropTypes from 'prop-types';
+import { Box, Typography } from '@mui/material'
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
+import PercentIcon from '@mui/icons-material/Percent'
+import CreditCardIcon from '@mui/icons-material/CreditCard'
+import CalculateIcon from '@mui/icons-material/Calculate'
+import Decimal from 'decimal.js'
+import { renderQuota } from 'utils/common'
+import { calculateOriginalQuota } from './QuotaWithDetailRow'
+import { useTranslation } from 'react-i18next'
+import PropTypes from 'prop-types'
 
 // Function to calculate price
 export function calculatePrice(ratio, groupDiscount, isTimes) {
   // Ensure inputs are valid numbers
-  ratio = ratio || 0;
-  groupDiscount = groupDiscount || 0;
+  ratio = ratio || 0
+  groupDiscount = groupDiscount || 0
 
-  let discount = new Decimal(ratio).mul(groupDiscount);
+  let discount = new Decimal(ratio).mul(groupDiscount)
 
   if (!isTimes) {
-    discount = discount.mul(1000);
+    discount = discount.mul(1000)
   }
 
   // Calculate the price as a Decimal
-  let priceDecimal = discount.mul(0.002);
+  let priceDecimal = discount.mul(0.002)
 
   // For display purposes, format with 6 decimal places and trim trailing zeros
-  let priceString = priceDecimal.toFixed(6);
-  priceString = priceString.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1');
+  let priceString = priceDecimal.toFixed(6)
+  priceString = priceString.replace(/(\.\d*?[1-9])0+$|\.0*$/, '$1')
 
   // For calculations, return the actual number value
-  return priceString;
+  return priceString
 }
 
 // QuotaWithDetailContent is responsible for rendering the detailed content
-export default function QuotaWithDetailContent({ item }) {
-  const { t } = useTranslation();
+export default function QuotaWithDetailContent({ item, totalInputTokens, totalOutputTokens }) {
+  const { t } = useTranslation()
   // Calculate the original quota based on the formula
-  const originalQuota = calculateOriginalQuota(item);
-  const quota = item.quota || 0;
+  const originalQuota = calculateOriginalQuota(item)
+  const quota = item.quota || 0
+
+  const priceType = item.metadata?.price_type || 'tokens'
+  const extraBilling = item?.metadata?.extra_billing || {}
 
   // Get input/output prices from metadata with appropriate defaults
   const originalInputPrice =
     item.metadata?.input_price_origin ||
-    (item.metadata?.input_ratio ? `$${calculatePrice(item.metadata.input_ratio, 1, false)} /M` : '$0 /M');
+    (item.metadata?.input_ratio ? `$${calculatePrice(item.metadata.input_ratio, 1, false)} /M` : '$0 /M')
   const originalOutputPrice =
     item.metadata?.output_price_origin ||
-    (item.metadata?.output_ratio ? `$${calculatePrice(item.metadata.output_ratio, 1, false)} /M` : '$0 /M');
+    (item.metadata?.output_ratio ? `$${calculatePrice(item.metadata.output_ratio, 1, false)} /M` : '$0 /M')
 
   // Calculate actual prices based on ratios and group discount
-  const groupRatio = item.metadata?.group_ratio || 1;
+  const groupRatio = item.metadata?.group_ratio || 1
   const inputPrice =
-    item.metadata?.input_price || (item.metadata?.input_ratio ? `$${calculatePrice(item.metadata.input_ratio, groupRatio, false)} ` : '$0');
+    item.metadata?.input_price || (item.metadata?.input_ratio ? `$${calculatePrice(item.metadata.input_ratio, groupRatio, false)} ` : '$0')
   const outputPrice =
     item.metadata?.output_price ||
-    (item.metadata?.output_ratio ? `$${calculatePrice(item.metadata.output_ratio, groupRatio, false)}` : '$0');
+    (item.metadata?.output_ratio ? `$${calculatePrice(item.metadata.output_ratio, groupRatio, false)}` : '$0')
 
-  const inputPriceUnit = inputPrice + ' /M';
-  const outputPriceUnit = outputPrice + ' /M';
+  const inputPriceUnit = inputPrice + ' /M'
+  const outputPriceUnit = outputPrice + ' /M'
 
-  const inputTokens = item.prompt_tokens || 0;
-  const outputTokens = item.completion_tokens || 0;
+  let calculateSteps = ''
+  if (priceType === 'tokens') {
+    calculateSteps = `(${totalInputTokens} / 1M × ${inputPrice})`
+    if (totalOutputTokens > 0) {
+      calculateSteps += ` + (${totalOutputTokens} / 1M × ${outputPrice})`
+    }
+  } else {
+    calculateSteps = `${inputPrice}`
+  }
 
-  // Create a calculation explanation string
-  const stepStr = `(${inputTokens} / 1,000,000 * ${inputPrice})${outputTokens > 0 ? ` + (${outputTokens} / 1,000,000 * ${outputPrice})` : ''} = ${renderQuota(quota, 6)}`;
+  const extraBillingSteps = []
+
+  if (extraBilling && Object.keys(extraBilling).length > 0) {
+    Object.entries(extraBilling).forEach(([key, data]) => {
+      if (data.type !== '') {
+        extraBillingSteps.push(`${key}[${data.type}] : $${data.price} x ${data.call_count}`)
+      } else {
+        extraBillingSteps.push(`${key} : $${data.price} x ${data.call_count}`)
+      }
+    })
+  }
+
+  if (extraBillingSteps.length > 0) {
+    calculateSteps += ` + (${extraBillingSteps.join(' + ')}) x ${groupRatio}`
+  }
 
   // let savePercent = '';
   // if (originalQuota > 0 && quota > 0) {
@@ -112,7 +135,7 @@ export default function QuotaWithDetailContent({ item }) {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <AttachMoneyIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.info.main }} />
+            <AttachMoneyIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.info.main }}/>
             <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{t('logPage.quotaDetail.originalPrice')}</Typography>
           </Box>
           <Typography sx={{ fontSize: 13, color: (theme) => theme.palette.text.secondary, mb: 0.5, textAlign: 'left' }}>
@@ -133,7 +156,7 @@ export default function QuotaWithDetailContent({ item }) {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <PercentIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.info.main }} />
+            <PercentIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.info.main }}/>
             <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{t('logPage.quotaDetail.groupRatio')}</Typography>
           </Box>
           <Typography sx={{ fontSize: 13, color: (theme) => theme.palette.text.secondary, textAlign: 'left' }}>
@@ -154,7 +177,7 @@ export default function QuotaWithDetailContent({ item }) {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <CreditCardIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.primary.main }} />
+            <CreditCardIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.primary.main }}/>
             <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{t('logPage.quotaDetail.actualPrice')}</Typography>
           </Box>
           <Typography sx={{ fontSize: 13, color: (theme) => theme.palette.text.secondary, mb: 0.5, textAlign: 'left' }}>
@@ -174,40 +197,29 @@ export default function QuotaWithDetailContent({ item }) {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <CalculateIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.success.main }} />
+          <CalculateIcon sx={{ fontSize: 20, mr: 1, color: (theme) => theme.palette.success.main }}/>
           <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{t('logPage.quotaDetail.finalCalculation')}</Typography>
         </Box>
-        <Typography
-          sx={{
-            fontSize: 13,
-            color: (theme) => theme.palette.text.secondary,
-            mb: 1,
-            textAlign: 'left'
-          }}
-        >
-          {stepStr}
+        <Typography sx={{ fontSize: 13, color: (theme) => theme.palette.text.secondary, mb: 1, textAlign: 'left' }}>
+          {calculateSteps}
         </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            mb: 1
-          }}
-        >
-          {
-            <Typography
-              sx={{
-                fontSize: 13,
-                color: (theme) => theme.palette.text.secondary,
-                mr: 2,
-                mb: { xs: 0.5, sm: 0 },
-                textAlign: 'left'
-              }}
-            >
-              {t('logPage.quotaDetail.originalBilling')}: {renderQuota(originalQuota, 6)}
-            </Typography>
-          }
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          mb: 1
+        }}>
+          <Typography
+            sx={{
+              fontSize: 13,
+              color: (theme) => theme.palette.text.secondary,
+              mr: 2,
+              mb: { xs: 0.5, sm: 0 },
+              textAlign: 'left'
+            }}
+          >
+            {t('logPage.quotaDetail.originalBilling')}: {renderQuota(originalQuota, 6)}
+          </Typography>
           <Typography
             sx={{
               fontSize: 13,
@@ -243,7 +255,7 @@ export default function QuotaWithDetailContent({ item }) {
         </Typography>
       </Box>
     </Box>
-  );
+  )
 }
 
 QuotaWithDetailContent.propTypes = {
@@ -261,7 +273,11 @@ QuotaWithDetailContent.propTypes = {
       input_price: PropTypes.string,
       output_price: PropTypes.string,
       original_quota: PropTypes.number,
-      origin_quota: PropTypes.number
+      origin_quota: PropTypes.number,
+      price_type: PropTypes.string,
+      extra_billing: PropTypes.object
     })
-  }).isRequired
-};
+  }).isRequired,
+  totalInputTokens: PropTypes.number.isRequired,
+  totalOutputTokens: PropTypes.number.isRequired
+}
