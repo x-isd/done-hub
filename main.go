@@ -22,6 +22,7 @@ import (
 	"done-hub/safty"
 	"embed"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -128,6 +129,15 @@ func initHttpServer() {
 	}
 
 	store := cookie.NewStore([]byte(config.SessionSecret))
+
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   2592000, // 30 days
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
+	})
+
 	server.Use(sessions.Sessions("session", store))
 
 	router.SetRouter(server, buildFS, indexPage)
