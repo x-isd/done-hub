@@ -12,6 +12,16 @@ export default defineConfig({
   //   define: {
   //     global: 'window'
   //   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // 使用现代 Sass API 解决 Legacy JS API 警告
+        api: 'modern-compiler',
+        // 静默弃用警告
+        silenceDeprecations: ['legacy-js-api', 'import']
+      }
+    }
+  },
   resolve: {
     alias: [
       {

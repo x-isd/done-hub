@@ -1,6 +1,6 @@
-@import 'fonts.scss';
+@use 'fonts.scss';
 // color variants
-@import 'themes-vars.module.scss';
+@use 'themes-vars.module.scss' as themes;
 
 // third-party
 @import '~react-perfect-scrollbar/dist/css/styles.css';
@@ -23,12 +23,12 @@
     &:hover > .ps__thumb-y,
     &:focus > .ps__thumb-y,
     &.ps--clicking .ps__thumb-y {
-      background-color: $grey500;
+      background-color: themes.$grey500;
       width: 5px;
     }
   }
   .ps__thumb-y {
-    background-color: $grey500;
+    background-color: themes.$grey500;
     border-radius: 6px;
     width: 5px;
     right: 0;

@@ -137,7 +137,8 @@
     "redemptionCode": "兑换码",
     "order": "订单",
     "realTimeTraffic": "实时流量",
-    "tpmDescription": "TPM (Token/分钟)",
+    "tpmDescription": "TPM",
+    "cpmDescription": "CPM",
     "last60SecondsStats": "最近60秒统计"
   },
   "channel_index": {

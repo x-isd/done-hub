@@ -23,22 +23,18 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 </div>
 
 
-## 目前与原版的区别
+## 目前与原版(最新镜像)的区别
 
-- 支持 Gemini 模型展示思考过程
-- 支持 Vertex-AI 渠道的 /gemini 原生请求
-- 支持 Vertex-AI 渠道的 global 区域
-- 支持 Vertex-AI 渠道的生图模型，并兼容 OpenAI 生图接口
-- 支持 Vertex-AI 渠道对齐 OpenAI 接口的视频解析请求
 - 支持 /gemini 原生生图请求的额外参数透传
 - 支持 /gemini 原生对话请求的思考参数
 - 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 支持批量删除渠道
-- 新增分析功能中的 RPM TPM 展示
+- 新增分析功能中的 RPM / TPM / CPM 展示
 - 新增邀请充值返利功能（可选类型: 固定/百分比）
 - 新增空回复是否计费配置 （默认:计费）
-- 修复用户额度缓存与DB数据不一致的导致计费异常的 bug
-- 修复编辑模型价格类型无效的 bug
+- 修复若干用户额度缓存与DB数据不一致的导致计费异常的 bug
+- 修复邀请记录字段缺失的 bug
+- 修复系统初始化http环境下登录异常的 bug
 - 删除日志功能中无意义的原始价格相关样式
 - ...
 
