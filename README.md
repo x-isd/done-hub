@@ -29,7 +29,9 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - 支持 /gemini 原生对话请求的思考参数
 - 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 支持批量删除渠道
+- 支持 VertexAI 渠道下可配置多个 Region , 每次请求随机选取 Region
 - 新增分析功能中的 RPM / TPM / CPM 展示
+- 新增批量添加渠道的用户分组功能
 - 新增邀请充值返利功能（可选类型: 固定/百分比）
 - 新增空回复是否计费配置 （默认:计费）
 - 修复若干用户额度缓存与DB数据不一致的导致计费异常的 bug
