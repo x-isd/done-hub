@@ -1,118 +1,119 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useSelector } from 'react-redux'
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 import {
-  Avatar,
-  Box,
-  ButtonBase,
   Card,
-  Fade,
-  IconButton,
-  InputBase,
-  Paper,
   Stack,
+  Typography,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
-  Typography,
-  useMediaQuery
-} from '@mui/material'
-import { Icon } from '@iconify/react'
-import { API } from 'utils/api'
-import { copy, showError, ValueFormatter } from 'utils/common'
-import { alpha, useTheme } from '@mui/material/styles'
-import Label from 'ui-component/Label'
-import ToggleButtonGroup from 'ui-component/ToggleButton'
+  Box,
+  InputBase,
+  Paper,
+  IconButton,
+  Fade,
+  useMediaQuery,
+  Avatar,
+  ButtonBase,
+  Tooltip
+} from '@mui/material';
+import { Icon } from '@iconify/react';
+import { API } from 'utils/api';
+import { showError, ValueFormatter, copy } from 'utils/common';
+import { useTheme } from '@mui/material/styles';
+import Label from 'ui-component/Label';
+import ToggleButtonGroup from 'ui-component/ToggleButton';
+import { alpha } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 export default function ModelPrice() {
-  const { t } = useTranslation()
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const ownedby = useSelector((state) => state.siteInfo?.ownedby)
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const ownedby = useSelector((state) => state.siteInfo?.ownedby);
 
-  const [rows, setRows] = useState([])
-  const [filteredRows, setFilteredRows] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [availableModels, setAvailableModels] = useState({})
-  const [userGroupMap, setUserGroupMap] = useState({})
-  const [selectedGroup, setSelectedGroup] = useState('')
-  const [selectedOwnedBy, setSelectedOwnedBy] = useState('all')
-  const [unit, setUnit] = useState('K')
-  const [onlyShowAvailable, setOnlyShowAvailable] = useState(false)
+  const [rows, setRows] = useState([]);
+  const [filteredRows, setFilteredRows] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [availableModels, setAvailableModels] = useState({});
+  const [userGroupMap, setUserGroupMap] = useState({});
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedOwnedBy, setSelectedOwnedBy] = useState('all');
+  const [unit, setUnit] = useState('K');
+  const [onlyShowAvailable, setOnlyShowAvailable] = useState(false);
 
   const unitOptions = [
     { value: 'K', label: 'K' },
     { value: 'M', label: 'M' }
-  ]
+  ];
 
-  const fetchAvailableModels = useCallback(async() => {
+  const fetchAvailableModels = useCallback(async () => {
     try {
-      const res = await API.get('/api/available_model')
-      const { success, message, data } = res.data
+      const res = await API.get('/api/available_model');
+      const { success, message, data } = res.data;
       if (success) {
-        setAvailableModels(data)
+        setAvailableModels(data);
       } else {
-        showError(message)
+        showError(message);
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }, [])
+  }, []);
 
-  const fetchUserGroupMap = useCallback(async() => {
+  const fetchUserGroupMap = useCallback(async () => {
     try {
-      const res = await API.get('/api/user_group_map')
-      const { success, message, data } = res.data
+      const res = await API.get('/api/user_group_map');
+      const { success, message, data } = res.data;
       if (success) {
-        setUserGroupMap(data)
-        setSelectedGroup(Object.keys(data)[0]) // 默认选择第一个分组
+        setUserGroupMap(data);
+        setSelectedGroup(Object.keys(data)[0]); // 默认选择第一个分组
       } else {
-        showError(message)
+        showError(message);
       }
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchAvailableModels()
-    fetchUserGroupMap()
-  }, [fetchAvailableModels, fetchUserGroupMap])
+    fetchAvailableModels();
+    fetchUserGroupMap();
+  }, [fetchAvailableModels, fetchUserGroupMap]);
 
   useEffect(() => {
-    if (!availableModels || !userGroupMap || !selectedGroup) return
+    if (!availableModels || !userGroupMap || !selectedGroup) return;
 
     const newRows = Object.entries(availableModels)
       .filter(([, model]) => selectedOwnedBy === 'all' || model.owned_by === selectedOwnedBy)
       .filter(([, model]) => !onlyShowAvailable || model.groups.includes(selectedGroup))
       .map(([modelName, model], index) => {
-        const group = userGroupMap[selectedGroup]
+        const group = userGroupMap[selectedGroup];
         const price = model.groups.includes(selectedGroup)
           ? {
             input: group.ratio * model.price.input,
             output: group.ratio * model.price.output
           }
-          : { input: t('modelpricePage.noneGroup'), output: t('modelpricePage.noneGroup') }
+          : { input: t('modelpricePage.noneGroup'), output: t('modelpricePage.noneGroup') };
 
         const formatPrice = (value, type) => {
           if (typeof value === 'number') {
-            let nowUnit = ''
-            let isM = unit === 'M'
+            let nowUnit = '';
+            let isM = unit === 'M';
             if (type === 'times') {
-              isM = false
+              isM = false;
             }
             if (type === 'tokens') {
-              nowUnit = `/ 1${unit}`
+              nowUnit = `/ 1${unit}`;
             }
-            return ValueFormatter(value, true, isM) + nowUnit
+            return ValueFormatter(value, true, isM) + nowUnit;
           }
-          return value
-        }
+          return value;
+        };
 
         return {
           id: index + 1,
@@ -123,51 +124,51 @@ export default function ModelPrice() {
           input: formatPrice(price.input, model.price.type),
           output: formatPrice(price.output, model.price.type),
           extraRatios: model.price?.extra_ratios
-        }
-      })
+        };
+      });
 
-    setRows(newRows)
-    setFilteredRows(newRows)
-  }, [availableModels, userGroupMap, selectedGroup, selectedOwnedBy, t, unit, onlyShowAvailable])
+    setRows(newRows);
+    setFilteredRows(newRows);
+  }, [availableModels, userGroupMap, selectedGroup, selectedOwnedBy, t, unit, onlyShowAvailable]);
 
   useEffect(() => {
-    const filtered = rows.filter((row) => row.model.toLowerCase().includes(searchQuery.toLowerCase()))
-    setFilteredRows(filtered)
-  }, [searchQuery, rows])
+    const filtered = rows.filter((row) => row.model.toLowerCase().includes(searchQuery.toLowerCase()));
+    setFilteredRows(filtered);
+  }, [searchQuery, rows]);
 
   const handleOwnedByChange = (newValue) => {
-    setSelectedOwnedBy(newValue)
-  }
+    setSelectedOwnedBy(newValue);
+  };
 
   const handleGroupChange = (groupKey) => {
-    setSelectedGroup(groupKey)
-  }
+    setSelectedGroup(groupKey);
+  };
 
   const handleSearchChange = (event) => {
-    setSearchQuery(event.target.value)
-  }
+    setSearchQuery(event.target.value);
+  };
 
   const handleUnitChange = (event, newUnit) => {
     if (newUnit !== null) {
-      setUnit(newUnit)
+      setUnit(newUnit);
     }
-  }
+  };
 
   const toggleOnlyShowAvailable = () => {
-    setOnlyShowAvailable((prev) => !prev)
-  }
+    setOnlyShowAvailable((prev) => !prev);
+  };
 
-  const uniqueOwnedBy = ['all', ...new Set(Object.values(availableModels).map((model) => model.owned_by))]
+  const uniqueOwnedBy = ['all', ...new Set(Object.values(availableModels).map((model) => model.owned_by))];
 
   const getIconByName = (name) => {
-    if (name === 'all') return null
-    const owner = ownedby.find((item) => item.name === name)
-    return owner?.icon
-  }
+    if (name === 'all') return null;
+    const owner = ownedby.find((item) => item.name === name);
+    return owner?.icon;
+  };
 
   const clearSearch = () => {
-    setSearchQuery('')
-  }
+    setSearchQuery('');
+  };
 
   return (
     <Stack spacing={3} sx={{ padding: theme.spacing(3) }}>
@@ -228,13 +229,12 @@ export default function ModelPrice() {
             }}
           >
             <IconButton sx={{ p: '8px' }} aria-label="search">
-              <Icon icon="eva:search-fill" width={18} height={18}/>
+              <Icon icon="eva:search-fill" width={18} height={18} />
             </IconButton>
-            <InputBase sx={{ ml: 1, flex: 1 }} placeholder={t('modelpricePage.search')} value={searchQuery}
-                       onChange={handleSearchChange}/>
+            <InputBase sx={{ ml: 1, flex: 1 }} placeholder={t('modelpricePage.search')} value={searchQuery} onChange={handleSearchChange} />
             {searchQuery && (
               <IconButton sx={{ p: '8px' }} aria-label="clear" onClick={clearSearch}>
-                <Icon icon="eva:close-fill" width={16} height={16}/>
+                <Icon icon="eva:close-fill" width={16} height={16} />
               </IconButton>
             )}
           </Paper>
@@ -277,7 +277,7 @@ export default function ModelPrice() {
               gap: 1
             }}
           >
-            <Icon icon="eva:globe-outline" width={18} height={18}/>
+            <Icon icon="eva:globe-outline" width={18} height={18} />
             {t('modelpricePage.channelType')}
           </Typography>
           <Box
@@ -288,7 +288,7 @@ export default function ModelPrice() {
             }}
           >
             {uniqueOwnedBy.map((ownedBy, index) => {
-              const isSelected = selectedOwnedBy === ownedBy
+              const isSelected = selectedOwnedBy === ownedBy;
               return (
                 <ButtonBase
                   key={index}
@@ -359,7 +359,7 @@ export default function ModelPrice() {
                     </Typography>
                   </Box>
                 </ButtonBase>
-              )
+              );
             })}
           </Box>
         </Box>
@@ -384,7 +384,7 @@ export default function ModelPrice() {
                 gap: 1
               }}
             >
-              <Icon icon="eva:people-outline" width={18} height={18}/>
+              <Icon icon="eva:people-outline" width={18} height={18} />
               {t('modelpricePage.group')}
             </Typography>
 
@@ -481,7 +481,7 @@ export default function ModelPrice() {
             }}
           >
             {Object.entries(userGroupMap).map(([key, group]) => {
-              const isSelected = selectedGroup === key
+              const isSelected = selectedGroup === key;
               return (
                 <Tooltip
                   key={key}
@@ -583,7 +583,7 @@ export default function ModelPrice() {
                     </Box>
                   </ButtonBase>
                 </Tooltip>
-              )
+              );
             })}
           </Box>
         </Box>
@@ -631,12 +631,12 @@ export default function ModelPrice() {
                           {row.model}
                         </Typography>
                         <IconButton size="small" onClick={() => copy(row.model)}>
-                          <Icon icon="eva:copy-outline" width={16} height={16}/>
+                          <Icon icon="eva:copy-outline" width={16} height={16} />
                         </IconButton>
                       </Stack>
                     </TableCell>
                     <TableCell sx={{ py: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                      <Box sx={{ display: 'flex',  alignItems: 'center', gap: 1, justifyContent: 'center' }}>
                         <Avatar
                           src={getIconByName(row.provider)}
                           alt={row.provider}
@@ -721,7 +721,7 @@ export default function ModelPrice() {
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     <Stack spacing={1.5} alignItems="center">
-                      <Icon icon="eva:search-outline" width={32} height={32} color={theme.palette.text.secondary}/>
+                      <Icon icon="eva:search-outline" width={32} height={32} color={theme.palette.text.secondary} />
                       <Typography variant="body2" color="text.secondary">
                         {t('common.noData')}
                       </Typography>
@@ -734,11 +734,11 @@ export default function ModelPrice() {
         </TableContainer>
       </Card>
     </Stack>
-  )
+  );
 }
 
 function getOther(t, extraRatios) {
-  if (!extraRatios) return ''
+  if (!extraRatios) return '';
 
   return (
     <Stack direction="column" spacing={0.5}>
@@ -758,5 +758,5 @@ function getOther(t, extraRatios) {
         </Label>
       ))}
     </Stack>
-  )
+  );
 }
