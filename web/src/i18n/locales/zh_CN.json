@@ -139,7 +139,14 @@
     "realTimeTraffic": "实时流量",
     "tpmDescription": "TPM",
     "cpmDescription": "CPM",
-    "last60SecondsStats": "最近60秒统计"
+    "last60SecondsStats": "最近60秒统计",
+    "timeFilter": {
+      "all": "全部",
+      "year": "本年",
+      "month": "本月",
+      "week": "本周",
+      "day": "今日"
+    }
   },
   "channel_index": {
     "channelList": "渠道列表",

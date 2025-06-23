@@ -101,7 +101,14 @@
     "order": "Order",
     "realTimeTraffic": "Real-time Traffic",
     "tpmDescription": "TPM (Token/min)",
-    "last60SecondsStats": "Last 60 seconds statistics"
+    "last60SecondsStats": "Last 60 seconds statistics",
+    "timeFilter": {
+      "all": "All",
+      "year": "This Year",
+      "month": "This Month",
+      "week": "This Week",
+      "day": "Today"
+    }
   },
   "auth": {
     "invalidLink": "Invalid link",
