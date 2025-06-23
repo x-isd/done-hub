@@ -56,7 +56,7 @@ export default function Overview() {
     return 'zh-cn'; // 默认中文locale（周一开始）
   };
 
-  // 获取时间范围
+  // 获取时间范围 - 保留给其他功能使用
   const getTimeRange = (filterType) => {
     const now = dayjs().locale(getDayjsLocale());
     switch (filterType) {
@@ -95,59 +95,28 @@ export default function Overview() {
     setChannelStatistics(channelData);
   };
 
-  // 统一处理充值统计数据
-  const processRechargeStatistics = (redemptionData, orderData, isTimePeriod = false) => {
-    const rechargeData = { total: 0, Redemption: 0, Oder: 0, OderContent: '' };
-
-    // 处理兑换码数据
-    if (redemptionData?.length) {
-      redemptionData.forEach((item) => {
-        rechargeData.Redemption += item.quota;
-      });
-      rechargeData.total += rechargeData.Redemption;
-      rechargeData.Redemption = renderQuota(rechargeData.Redemption);
-    }
-
-    // 处理订单数据
-    if (orderData?.length) {
-      if (isTimePeriod) {
-        // 按时间范围查询的订单数据处理
-        const totalOrderAmount = orderData.reduce((sum, item) => sum + item.order_amount, 0);
-        rechargeData.Oder = totalOrderAmount * 500000; // 1 CNY = 500000 quota
-        rechargeData.OderContent = `CNY: ${totalOrderAmount.toFixed(2)} `;
-      } else {
-        // 全部数据的订单处理
-        const orderMap = {};
-        orderData.forEach((item) => {
-          rechargeData.Oder += item.quota;
-          orderMap[item.order_currency] = (orderMap[item.order_currency] || 0) + item.money;
-        });
-        rechargeData.OderContent = Object.entries(orderMap)
-          .map(([currency, amount]) => `${currency}: ${amount}`)
-          .join(' ');
-      }
-      rechargeData.total += rechargeData.Oder;
-      rechargeData.Oder = renderQuota(rechargeData.Oder);
-    }
-
-    rechargeData.total = renderQuota(rechargeData.total);
+  // 处理新接口返回的充值统计数据
+  const processRechargeStatistics = (data) => {
+    const rechargeData = {
+      total: renderQuota(data.total || 0),
+      Redemption: renderQuota(data.redemption_amount || 0),
+      Oder: renderQuota(data.order_amount || 0),
+      OderContent: data.order_currency_info || ''
+    };
     setRechargeStatistics(rechargeData);
   };
 
-  // 获取充值统计数据
+  // 获取充值统计数据 - 使用新的专用接口
   const fetchRechargeStatistics = async (timeFilter) => {
     setRechargeLoading(true);
     try {
-      const timeRange = getTimeRange(timeFilter);
-      const endpoint = timeRange ? '/api/analytics/period' : '/api/analytics/statistics';
-      const params = timeRange ? { start_timestamp: timeRange.start, end_timestamp: timeRange.end } : {};
-
-      const res = await API.get(endpoint, { params });
+      const res = await API.get('/api/analytics/recharge', {
+        params: { time_range: timeFilter }
+      });
       const { success, message, data } = res.data;
 
       if (success && data) {
-        const redemptionKey = timeRange ? 'redemption_statistics' : 'redemption_statistic';
-        processRechargeStatistics(data[redemptionKey], data.order_statistics, !!timeRange);
+        processRechargeStatistics(data);
       } else {
         showError(message);
       }

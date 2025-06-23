@@ -197,6 +197,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			analyticsRoute.GET("/statistics", controller.GetStatisticsDetail)
 			analyticsRoute.GET("/period", controller.GetStatisticsByPeriod)
+			analyticsRoute.GET("/recharge", controller.GetRechargeStatisticsByTimeRange)
 		}
 
 		pricesRoute := apiRouter.Group("/prices")
