@@ -10,7 +10,6 @@ import (
 	"done-hub/common/utils"
 	"errors"
 	"fmt"
-
 	"gorm.io/gorm"
 )
 
@@ -114,7 +113,8 @@ func GetTokenModel(key string) (token *Token, err error) {
 
 	token, err = CacheGetTokenByKey(key)
 	if err != nil {
-		logger.SysError(fmt.Sprintf("DB Not Found: userId=%d, tokenId=%d, key=%s, err=%s", userId, tokenId, key, err.Error()))
+		maskedKey := key[:3] + "*********" + key[len(key)-3:]
+		logger.SysError(fmt.Sprintf("DB Not Found: userId=%d, tokenId=%d, key=%s, err=%s", userId, tokenId, maskedKey, err.Error()))
 		return nil, ErrTokenInvalid
 	}
 

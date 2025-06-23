@@ -1,222 +1,217 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box,
-  Stack,
-  Typography,
   Button,
-  Switch,
-  FormControlLabel,
-  TextField,
-  InputAdornment,
-  IconButton,
   FormControl,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
   InputLabel,
+  MenuItem,
   Select,
-  MenuItem
-} from '@mui/material';
-import MainCard from 'ui-component/cards/MainCard';
-import { useTranslation } from 'react-i18next';
-import { Icon } from '@iconify/react';
-import axios from 'axios';
+  Stack,
+  Switch,
+  TextField,
+  Typography
+} from '@mui/material'
+import MainCard from 'ui-component/cards/MainCard'
+import { useTranslation } from 'react-i18next'
+import { Icon } from '@iconify/react'
+import axios from 'axios'
 
 // System Logs Component
 const SystemLogs = () => {
-  const { t } = useTranslation();
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(5000); // Default: 5 seconds
-  const [maxEntries, setMaxEntries] = useState(50);
-  const [logs, setLogs] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredLogs, setFilteredLogs] = useState([]);
-  const logsEndRef = useRef(null);
-  const logsContainerRef = useRef(null);
+  const { t } = useTranslation()
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [refreshInterval, setRefreshInterval] = useState(5000) // Default: 5 seconds
+  const [maxEntries, setMaxEntries] = useState(50)
+  const [logs, setLogs] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredLogs, setFilteredLogs] = useState([])
+  const [isInitialized, setIsInitialized] = useState(false) // 添加初始化标志
+  const logsEndRef = useRef(null)
+  const logsContainerRef = useRef(null)
 
   // Process a log entry from the backend
   const processLogEntry = (entry) => {
     try {
       // Map log levels to our frontend types
-      let type = entry.Level.toLowerCase();
+      let type = entry.Level.toLowerCase()
 
       // Map log levels to our frontend types
       switch (type) {
         case 'info':
-          type = 'info';
-          break;
+          type = 'info'
+          break
         case 'error':
         case 'err':
         case 'fatal':
-          type = 'error';
-          break;
+          type = 'error'
+          break
         case 'warn':
         case 'warning':
-          type = 'warning';
-          break;
+          type = 'warning'
+          break
         case 'debug':
-          type = 'debug';
-          break;
+          type = 'debug'
+          break
         default:
-          type = 'info';
+          type = 'info'
       }
 
       return {
         timestamp: new Date(entry.Timestamp).toISOString(),
         type,
         message: entry.Message
-      };
+      }
     } catch (error) {
-      console.error('Error processing log entry:', error, entry);
+      console.error('Error processing log entry:', error, entry)
       return {
         timestamp: new Date().toISOString(),
         type: 'error',
         message: `Failed to process log entry: ${JSON.stringify(entry)}`
-      };
+      }
     }
-  };
+  }
 
   // Fetch logs from the API
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async() => {
     try {
       const response = await axios.post('/api/system_info/log', {
         count: maxEntries
-      });
+      })
 
       if (response.data.success) {
-        const logData = response.data.data;
-        const processedLogs = logData.map(processLogEntry);
-        setLogs(processedLogs);
+        const logData = response.data.data
+        const processedLogs = logData.map(processLogEntry)
+        setLogs(processedLogs)
       } else {
-        console.error('Failed to fetch logs:', response.data.message);
+        console.error('Failed to fetch logs:', response.data.message)
       }
     } catch (error) {
-      console.error('Error fetching logs:', error);
+      console.error('Error fetching logs:', error)
     }
-  }, [maxEntries, processLogEntry]);
+  }, [maxEntries])
 
-  // Fetch logs on component mount (only once)
+  // 初始化时只加载一次
   useEffect(() => {
-    // Initial fetch only when component mounts
-    fetchLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);  // Empty dependency array means this runs once on mount
-
-  // Fetch logs when maxEntries changes
-  useEffect(() => {
-    // Only fetch logs when maxEntries changes, not on initial render
-    const controller = new AbortController();
-
-    // Skip the initial render
-    if (maxEntries !== 50) { // 50 is the default value
-      fetchLogs();
+    if (!isInitialized) {
+      fetchLogs()
+      setIsInitialized(true)
     }
+  }, [fetchLogs, isInitialized])
 
-    return () => {
-      controller.abort();
-    };
-  }, [maxEntries, fetchLogs]);
+  // 当 maxEntries 变化时重新获取日志（但不在初始化时触发）
+  useEffect(() => {
+    if (isInitialized) {
+      fetchLogs()
+    }
+  }, [maxEntries, fetchLogs, isInitialized])
 
   // Set up auto-refresh interval
   useEffect(() => {
     // Only set up interval if autoRefresh is enabled
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(fetchLogs, refreshInterval);
+    let interval
+    if (autoRefresh && isInitialized) {
+      interval = setInterval(fetchLogs, refreshInterval)
     }
 
     return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [autoRefresh, fetchLogs, refreshInterval]);
+      if (interval) clearInterval(interval)
+    }
+  }, [autoRefresh, fetchLogs, refreshInterval, isInitialized])
 
   // Filter logs based on search term
   useEffect(() => {
     if (!searchTerm.trim()) {
-      setFilteredLogs(logs);
+      setFilteredLogs(logs)
     } else {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase()
       const filtered = logs.filter(
         (log) =>
           log.message.toLowerCase().includes(term) ||
           log.type.toLowerCase().includes(term) ||
           formatTimestamp(log.timestamp).toLowerCase().includes(term)
-      );
-      setFilteredLogs(filtered);
+      )
+      setFilteredLogs(filtered)
     }
-  }, [logs, searchTerm]);
+  }, [logs, searchTerm])
 
   // Scroll to bottom when logs update
   useEffect(() => {
     if (autoRefresh && logsContainerRef.current) {
-      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight
     }
-  }, [logs, autoRefresh]);
+  }, [logs, autoRefresh])
 
   // Handle max entries change
   const handleMaxEntriesChange = (event) => {
-    const value = parseInt(event.target.value);
+    const value = parseInt(event.target.value)
     if (!isNaN(value) && value > 0 && value <= 500) {
-      setMaxEntries(value);
+      setMaxEntries(value)
     }
-  };
+  }
 
   // Handle search term change
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
-  };
+    setSearchTerm(event.target.value)
+  }
 
   // Clear logs display
   const handleClearLogs = () => {
-    setLogs([]);
-  };
+    setLogs([])
+  }
 
   // Clear search
   const handleClearSearch = () => {
-    setSearchTerm('');
-  };
+    setSearchTerm('')
+  }
 
   // Handle refresh interval change
   const handleRefreshIntervalChange = (event) => {
-    const value = parseInt(event.target.value);
-    setRefreshInterval(value);
-  };
+    const value = parseInt(event.target.value)
+    setRefreshInterval(value)
+  }
 
   // Get log type color
   const getLogTypeColor = (type) => {
     switch (type) {
       case 'info':
-        return 'primary.main';
+        return 'primary.main'
       case 'warning':
-        return 'warning.main';
+        return 'warning.main'
       case 'error':
-        return 'error.main';
+        return 'error.main'
       case 'debug':
-        return 'success.main';
+        return 'success.main'
       default:
-        return 'text.primary';
+        return 'text.primary'
     }
-  };
+  }
 
   // Format timestamp
   const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-  };
+    const date = new Date(timestamp)
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  }
 
   return (
     <MainCard
       title={t('System Logs')}
       secondary={
-        <Stack 
-          direction={{ xs: 'column', sm: 'row' }} 
-          spacing={2} 
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
           alignItems={{ xs: 'flex-start', sm: 'center' }}
           sx={{ flexWrap: 'wrap' }}
         >
           <FormControlLabel
-            control={<Switch checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} color="primary" />}
+            control={<Switch checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} color="primary"/>}
             label={t('Auto Refresh')}
             sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
           />
-          <FormControl variant="outlined" size="small" sx={{ width: { xs: '100%', sm: '150px' }, minWidth: { xs: '100%', sm: '150px' } }}>
+          <FormControl variant="outlined" size="small"
+                       sx={{ width: { xs: '100%', sm: '150px' }, minWidth: { xs: '100%', sm: '150px' } }}>
             <InputLabel id="refresh-interval-label">{t('Refresh Interval')}</InputLabel>
             <Select
               labelId="refresh-interval-label"
@@ -243,11 +238,11 @@ const SystemLogs = () => {
             InputProps={{ inputProps: { min: 1, max: 500 } }}
             sx={{ width: { xs: '100%', sm: '120px' } }}
           />
-          <Button 
-            variant="outlined" 
-            color="error" 
-            onClick={handleClearLogs} 
-            startIcon={<Icon icon="solar:trash-bin-trash-bold" />}
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleClearLogs}
+            startIcon={<Icon icon="solar:trash-bin-trash-bold"/>}
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             {t('Clear')}
@@ -271,13 +266,13 @@ const SystemLogs = () => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <Icon icon="solar:magnifer-linear" />
+                <Icon icon="solar:magnifer-linear"/>
               </InputAdornment>
             ),
             endAdornment: searchTerm && (
               <InputAdornment position="end">
                 <IconButton size="small" onClick={handleClearSearch}>
-                  <Icon icon="solar:close-circle-bold" />
+                  <Icon icon="solar:close-circle-bold"/>
                 </IconButton>
               </InputAdornment>
             )
@@ -307,9 +302,9 @@ const SystemLogs = () => {
         ) : (
           filteredLogs.map((log, index) => (
             <Box key={index} sx={{ mb: 1, p: 1, borderRadius: 1, bgcolor: 'background.paper' }}>
-              <Stack 
-                direction={{ xs: 'column', sm: 'row' }} 
-                spacing={1} 
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
                 alignItems={{ xs: 'flex-start', sm: 'center' }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
@@ -334,10 +329,10 @@ const SystemLogs = () => {
             </Box>
           ))
         )}
-        <div ref={logsEndRef} />
+        <div ref={logsEndRef}/>
       </Box>
     </MainCard>
-  );
-};
+  )
+}
 
-export default SystemLogs;
+export default SystemLogs
