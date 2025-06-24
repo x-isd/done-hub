@@ -390,18 +390,22 @@ function getOrdersData(data, dateRange) {
   ];
 
   let total = 0;
+  const dailyTotals = new Array(dates.length).fill(0);
 
+  // 聚合不同货币的充值数据
   for (const item of data) {
     const index = dates.indexOf(item.date);
     if (index !== -1) {
-      result[0].data[index] = item.order_amount;
-
-      total += item.order_amount;
+      // 使用新的字段名 money 而不是 order_amount
+      dailyTotals[index] += item.money || 0;
+      total += item.money || 0;
     }
   }
 
-  let chartData = generateBarChartOptions(dates, result, 'CNY', 0);
-  chartData.options.title.text = '总充值数：' + total;
+  result[0].data = dailyTotals;
+
+  let chartData = generateBarChartOptions(dates, result, 'CNY', 2);
+  chartData.options.title.text = '总充值数：' + total.toFixed(2);
 
   return chartData;
 }

@@ -4,6 +4,7 @@ import (
 	"done-hub/model"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -132,14 +133,26 @@ func GetRechargeStatisticsByTimeRange(c *gin.Context) {
 
 	// 后端计算时间范围
 	if timeRange != "all" {
-		now := time.Now()
+		// 优先使用系统本地时区（Docker中通过TZ环境变量设置）
+		// 如果Docker设置了TZ=Asia/Shanghai，time.Local会自动使用该时区
+		location := time.Local
+
+		// 也可以通过环境变量TZ覆盖，如果有需要的话
+		if tzEnv := os.Getenv("TZ"); tzEnv != "" {
+			if loc, err := time.LoadLocation(tzEnv); err == nil {
+				location = loc
+			}
+		}
+
+		now := time.Now().In(location)
+
 		switch timeRange {
 		case "year":
-			startTimestamp = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Unix()
-			endTimestamp = time.Date(now.Year(), 12, 31, 23, 59, 59, 0, now.Location()).Unix()
+			startTimestamp = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, location).Unix()
+			endTimestamp = time.Date(now.Year(), 12, 31, 23, 59, 59, 0, location).Unix()
 		case "month":
-			startTimestamp = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Unix()
-			endTimestamp = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-time.Second).Unix()
+			startTimestamp = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, location).Unix()
+			endTimestamp = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, location).Add(-time.Second).Unix()
 		case "week":
 			// 计算本周开始（周一）
 			weekday := now.Weekday()
@@ -147,11 +160,11 @@ func GetRechargeStatisticsByTimeRange(c *gin.Context) {
 				weekday = 7
 			}
 			startOfWeek := now.AddDate(0, 0, -int(weekday-1))
-			startTimestamp = time.Date(startOfWeek.Year(), startOfWeek.Month(), startOfWeek.Day(), 0, 0, 0, 0, now.Location()).Unix()
-			endTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location()).Unix()
+			startTimestamp = time.Date(startOfWeek.Year(), startOfWeek.Month(), startOfWeek.Day(), 0, 0, 0, 0, location).Unix()
+			endTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, location).Unix()
 		case "day":
-			startTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
-			endTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location()).Unix()
+			startTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location).Unix()
+			endTimestamp = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, location).Unix()
 		default:
 			// 无效的时间范围，返回错误
 			c.JSON(http.StatusBadRequest, gin.H{

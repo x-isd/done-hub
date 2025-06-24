@@ -3,6 +3,7 @@ package model
 import (
 	"done-hub/common"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -137,17 +138,63 @@ func UpdateStatistics(updateType StatisticsUpdateType) error {
 	%s
 	`
 
+	// 获取系统时区偏移
+	getTimezoneOffset := func() (string, string) {
+		// 优先使用系统本地时区（Docker中通过TZ环境变量设置）
+		location := time.Local
+
+		// 也可以通过环境变量TZ覆盖
+		if tzEnv := os.Getenv("TZ"); tzEnv != "" {
+			if loc, err := time.LoadLocation(tzEnv); err == nil {
+				location = loc
+			}
+		}
+
+		// 获取当前时间在指定时区的偏移量
+		now := time.Now().In(location)
+		_, offset := now.Zone()
+
+		// 计算小时偏移
+		hours := offset / 3600
+		minutes := (offset % 3600) / 60
+
+		// 生成不同数据库需要的格式
+		var sqliteOffset, mysqlOffset string
+		if hours >= 0 {
+			sqliteOffset = fmt.Sprintf("+%d hours", hours)
+			if minutes != 0 {
+				sqliteOffset += fmt.Sprintf(" %d minutes", minutes)
+			}
+			mysqlOffset = fmt.Sprintf("+%02d:%02d", hours, minutes)
+		} else {
+			sqliteOffset = fmt.Sprintf("%d hours", hours) // 负数自带减号
+			if minutes != 0 {
+				sqliteOffset += fmt.Sprintf(" %d minutes", -minutes) // 分钟也要是负数
+			}
+			mysqlOffset = fmt.Sprintf("-%02d:%02d", -hours, -minutes)
+		}
+
+		return sqliteOffset, mysqlOffset
+	}
+
 	sqlPrefix := ""
 	sqlWhere := ""
 	sqlDate := ""
 	sqlSuffix := ""
 	if common.UsingSQLite {
 		sqlPrefix = "INSERT OR REPLACE INTO"
-		sqlDate = "strftime('%Y-%m-%d', datetime(created_at, 'unixepoch', '+8 hours'))"
+		// 动态获取时区偏移，而不是硬编码+8 hours
+		sqliteOffset, _ := getTimezoneOffset()
+		sqlDate = fmt.Sprintf("strftime('%%Y-%%m-%%d', datetime(created_at, 'unixepoch', '%s'))", sqliteOffset)
 		sqlSuffix = ""
 	} else if common.UsingPostgreSQL {
 		sqlPrefix = "INSERT INTO"
-		sqlDate = "DATE_TRUNC('day', TO_TIMESTAMP(created_at))::DATE"
+		// PostgreSQL使用系统时区
+		tzName := "UTC"
+		if tzEnv := os.Getenv("TZ"); tzEnv != "" {
+			tzName = tzEnv
+		}
+		sqlDate = fmt.Sprintf("DATE_TRUNC('day', TO_TIMESTAMP(created_at) AT TIME ZONE '%s')::DATE", tzName)
 		sqlSuffix = `ON CONFLICT (date, user_id, channel_id, model_name) DO UPDATE SET
 		request_count = EXCLUDED.request_count,
 		quota = EXCLUDED.quota,
@@ -156,7 +203,9 @@ func UpdateStatistics(updateType StatisticsUpdateType) error {
 		request_time = EXCLUDED.request_time`
 	} else {
 		sqlPrefix = "INSERT INTO"
-		sqlDate = "DATE_FORMAT(FROM_UNIXTIME(created_at), '%Y-%m-%d')"
+		// MySQL动态获取时区偏移
+		_, mysqlOffset := getTimezoneOffset()
+		sqlDate = fmt.Sprintf("DATE_FORMAT(CONVERT_TZ(FROM_UNIXTIME(created_at), '+00:00', '%s'), '%%Y-%%m-%%d')", mysqlOffset)
 		sqlSuffix = `ON DUPLICATE KEY UPDATE
 		request_count = VALUES(request_count),
 		quota = VALUES(quota),
@@ -164,8 +213,17 @@ func UpdateStatistics(updateType StatisticsUpdateType) error {
 		completion_tokens = VALUES(completion_tokens),
 		request_time = VALUES(request_time)`
 	}
-	now := time.Now()
-	todayTimestamp := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+
+	// 使用系统本地时区计算时间戳
+	location := time.Local
+	if tzEnv := os.Getenv("TZ"); tzEnv != "" {
+		if loc, err := time.LoadLocation(tzEnv); err == nil {
+			location = loc
+		}
+	}
+
+	now := time.Now().In(location)
+	todayTimestamp := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location).Unix()
 
 	switch updateType {
 	case StatisticsUpdateTypeToDay:
