@@ -977,7 +977,7 @@
       "customSettings": {
         "aboutLabel": "關於",
         "aboutPlaceholder": "在此輸入新的關於內容，支持 Markdown & HTML 代碼。如果輸入的是一個鏈接，則會使用該鏈接作為 iframe 的 src 屬性，這允許你設置任意網頁作為關於頁面。",
-        "copyrightWarning": "移除 One Hub 的版權標識必須首先獲得授權，項目維護需要花費大量精力，如果本項目對你有意義，請主動支持本項目。",
+        "copyrightWarning": "移除 Done Hub 的版權標識必須首先獲得授權，項目維護需要花費大量精力，如果本項目對你有意義，請主動支持本項目。",
         "footerLabel": "頁腳設置",
         "footerPlaceholder": "在此輸入新的頁腳，留空則使用默認頁腳，支持 HTML 代碼",
         "homePageContentLabel": "首頁內容",

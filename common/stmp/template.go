@@ -20,7 +20,7 @@ func getLogo() string {
 
 func getSystemName() string {
 	if config.SystemName == "" {
-		return "One Hub"
+		return "Done Hub"
 	}
 
 	return config.SystemName
