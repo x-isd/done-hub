@@ -12,6 +12,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// getCurrencySymbol 获取货币符号
+func getCurrencySymbol(currency string) string {
+	switch currency {
+	case "CNY":
+		return "¥"
+	case "USD":
+		return "$"
+	default:
+		return currency + ": "
+	}
+}
+
 type StatisticsByPeriod struct {
 	UserStatistics       []*model.UserStatisticsByPeriod    `json:"user_statistics"`
 	ChannelStatistics    []*model.LogStatisticGroupChannel  `json:"channel_statistics"`
@@ -217,7 +229,7 @@ func GetRechargeStatisticsByTimeRange(c *gin.Context) {
 			if len(currencies) > 0 {
 				var currencyInfo []string
 				for currency, amount := range currencies {
-					currencyInfo = append(currencyInfo, fmt.Sprintf("%s: %.2f", currency, amount))
+					currencyInfo = append(currencyInfo, fmt.Sprintf("%s%.2f", getCurrencySymbol(currency), amount))
 				}
 				rechargeStats.OrderCurrencyInfo = strings.Join(currencyInfo, " ")
 			}
@@ -255,7 +267,7 @@ func GetRechargeStatisticsByTimeRange(c *gin.Context) {
 			if len(currencies) > 0 {
 				var currencyInfo []string
 				for currency, amount := range currencies {
-					currencyInfo = append(currencyInfo, fmt.Sprintf("%s: %.2f", currency, amount))
+					currencyInfo = append(currencyInfo, fmt.Sprintf("%s%.2f", getCurrencySymbol(currency), amount))
 				}
 				rechargeStats.OrderCurrencyInfo = strings.Join(currencyInfo, " ")
 			}

@@ -225,7 +225,7 @@ export default function Overview() {
             <>
               {t('analytics_index.tpmDescription')}: {rpmTpmStatistics.tpm.toLocaleString()} <br />
               {t('analytics_index.cpmDescription')}: ${rpmTpmStatistics.cpm.toFixed(4)}{' '}
-              {siteInfo.PaymentUSDRate ? ` / CNY: ${(rpmTpmStatistics.cpm * siteInfo.PaymentUSDRate).toFixed(4)}` : ''}
+              {siteInfo.PaymentUSDRate ? ` / ¥${(rpmTpmStatistics.cpm * siteInfo.PaymentUSDRate).toFixed(4)}` : ''}
             </>
           }
         />
