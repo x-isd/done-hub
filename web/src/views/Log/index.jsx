@@ -125,8 +125,18 @@ export default function Log() {
   };
 
   const searchLogs = async () => {
+    // 如果正在搜索中，防止重复提交
+    if (searching) {
+      return;
+    }
+
     setPage(0);
-    setSearchKeyword(toolBarValue);
+    // 使用时间戳来确保即使搜索条件相同也能触发重新搜索
+    const searchPayload = {
+      ...toolBarValue,
+      _timestamp: Date.now()
+    };
+    setSearchKeyword(searchPayload);
   };
 
   const handleToolBarValue = (event) => {
@@ -144,6 +154,12 @@ export default function Log() {
     async (page, rowsPerPage, keyword, order, orderBy) => {
       setSearching(true);
       keyword = trims(keyword);
+
+      // 移除仅用于触发状态更新的时间戳字段
+      if (keyword._timestamp) {
+        delete keyword._timestamp;
+      }
+
       try {
         if (orderBy) {
           orderBy = order === 'desc' ? '-' + orderBy : orderBy;
@@ -192,6 +208,14 @@ export default function Log() {
 
   return (
     <>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
         <Stack direction="column" spacing={1}>
           <Typography variant="h2">{t('logPage.title')}</Typography>
@@ -221,7 +245,7 @@ export default function Log() {
           </Tabs>
         </Box>
         <Box component="form" noValidate>
-          <TableToolBar filterName={toolBarValue} handleFilterName={handleToolBarValue} userIsAdmin={userIsAdmin} />
+          <TableToolBar filterName={toolBarValue} handleFilterName={handleToolBarValue} userIsAdmin={userIsAdmin} onSearch={searchLogs} />
         </Box>
         <Toolbar
           sx={{
@@ -235,12 +259,38 @@ export default function Log() {
           <Container maxWidth="xl">
             {matchUpMd ? (
               <ButtonGroup variant="outlined" aria-label="outlined small primary button group">
-                <Button onClick={handleRefresh} size="small" startIcon={<Icon icon="solar:refresh-bold-duotone" width={18} />}>
+                <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
                   {t('logPage.refreshButton')}
                 </Button>
 
-                <Button onClick={searchLogs} size="small" startIcon={<Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />}>
-                  {t('logPage.searchButton')}
+                <Button
+                  onClick={searchLogs}
+                  size="small"
+                  startIcon={
+                    searching ? (
+                      <Icon
+                        icon="solar:refresh-bold-duotone"
+                        width={18}
+                        style={{
+                          animation: 'spin 1s linear infinite',
+                          color: '#1976d2'
+                        }}
+                      />
+                    ) : (
+                      <Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />
+                    )
+                  }
+                  sx={{
+                    ...(searching && {
+                      bgcolor: 'action.hover',
+                      color: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'action.selected'
+                      }
+                    })
+                  }}
+                >
+                  {searching ? '搜索中...' : t('logPage.searchButton')}
                 </Button>
 
                 <Button onClick={handleColumnMenuOpen} size="small" startIcon={<Icon icon="solar:settings-bold-duotone" width={18} />}>
@@ -256,10 +306,30 @@ export default function Log() {
                 alignItems="center"
               >
                 <IconButton onClick={handleRefresh} size="small">
-                  <Icon icon="solar:refresh-bold-duotone" width={18} />
+                  <Icon icon="solar:refresh-circle-bold-duotone" width={18} />
                 </IconButton>
-                <IconButton onClick={searchLogs} size="small">
-                  <Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />
+                <IconButton
+                  onClick={searchLogs}
+                  size="small"
+                  sx={{
+                    ...(searching && {
+                      bgcolor: 'action.hover',
+                      color: 'primary.main'
+                    })
+                  }}
+                >
+                  {searching ? (
+                    <Icon
+                      icon="solar:refresh-bold-duotone"
+                      width={18}
+                      style={{
+                        animation: 'spin 1s linear infinite',
+                        color: '#1976d2'
+                      }}
+                    />
+                  ) : (
+                    <Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />
+                  )}
                 </IconButton>
                 <IconButton onClick={handleColumnMenuOpen} size="small">
                   <Icon icon="solar:settings-bold-duotone" width={18} />

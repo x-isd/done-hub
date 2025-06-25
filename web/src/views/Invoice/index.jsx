@@ -51,9 +51,9 @@ export default function Invoice() {
 
   const handlerViewInvoice = (date) => {
     //时间只取年月日
-    date = date.substring(0, 7)
+    date = date.substring(0, 7);
     navigate(`/panel/invoice/detail/${date}`);
-  }
+  };
 
   const fetchData = async (page, rowsPerPage, order, orderBy) => {
     setSearching(true);
@@ -92,7 +92,6 @@ export default function Invoice() {
     fetchData(page, rowsPerPage, order, orderBy);
   }, [page, rowsPerPage, order, orderBy, refreshFlag]);
 
-
   return (
     <>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
@@ -117,7 +116,7 @@ export default function Invoice() {
           }}
         >
           <Container maxWidth="xl">
-            <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-bold-duotone" width={18} />}>
+            <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
               {t('invoice_index.refresh')}
             </Button>
           </Container>

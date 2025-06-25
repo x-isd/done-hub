@@ -6,14 +6,28 @@ import { CHANNEL_OPTIONS } from 'constants/ChannelConstants';
 import { useTranslation } from 'react-i18next';
 // ----------------------------------------------------------------------
 
-export default function TableToolBar({ filterName, handleFilterName, groupOptions, tags }) {
+export default function TableToolBar({ filterName, handleFilterName, groupOptions, tags, onSearch }) {
   const theme = useTheme();
   const grey500 = theme.palette.grey[500];
   const { t } = useTranslation();
 
+  // 处理回车键搜索
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && onSearch) {
+      event.preventDefault();
+      onSearch();
+    }
+  };
+
   return (
     <>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 3, sm: 2, md: 4 }} padding={'24px'} paddingBottom={'0px'} sx={{ width: '100%', '& > *': { flex: 1 } }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 3, sm: 2, md: 4 }}
+        padding={'24px'}
+        paddingBottom={'0px'}
+        sx={{ width: '100%', '& > *': { flex: 1 } }}
+      >
         <FormControl>
           <InputLabel htmlFor="channel-name-label">{t('channel_index.channelName')}</InputLabel>
           <OutlinedInput
@@ -25,6 +39,7 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
             label={t('channel_index.channelName')}
             value={filterName.name}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('channel_index.channelName')}
             startAdornment={
               <InputAdornment position="start">
@@ -44,6 +59,7 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
             label={t('channel_index.modelName')}
             value={filterName.models}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('channel_index.modelName')}
             startAdornment={
               <InputAdornment position="start">
@@ -63,6 +79,7 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
             label={t('channel_index.testModel')}
             value={filterName.test_model}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('channel_index.testModel')}
             startAdornment={
               <InputAdornment position="start">
@@ -82,6 +99,7 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
             label="key"
             value={filterName.key}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder="key"
             startAdornment={
               <InputAdornment position="start">
@@ -101,6 +119,7 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
             label={t('channel_index.otherParameters')}
             value={filterName.other}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('channel_index.otherParameters')}
             startAdornment={
               <InputAdornment position="start">
@@ -111,7 +130,12 @@ export default function TableToolBar({ filterName, handleFilterName, groupOption
         </FormControl>
       </Stack>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 3, sm: 2, md: 4 }} padding={'24px'} sx={{ width: '100%', '& > *': { flex: 1 } }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 3, sm: 2, md: 4 }}
+        padding={'24px'}
+        sx={{ width: '100%', '& > *': { flex: 1 } }}
+      >
         <FormControl>
           <InputLabel htmlFor="channel-type-label">{t('channel_index.channelType')}</InputLabel>
           <Select
@@ -273,5 +297,6 @@ TableToolBar.propTypes = {
   filterName: PropTypes.object,
   handleFilterName: PropTypes.func,
   groupOptions: PropTypes.array,
-  tags: PropTypes.array
+  tags: PropTypes.array,
+  onSearch: PropTypes.func
 };

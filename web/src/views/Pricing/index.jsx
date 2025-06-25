@@ -197,7 +197,7 @@ const Pricing = () => {
           <Button color="primary" onClick={() => handleOpenaddModal(null)} startIcon={<Icon icon="solar:add-circle-line-duotone" />}>
             {t('pricingPage.newButton')}
           </Button>
-          <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-bold-duotone" />}>
+          <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
             {t('pricingPage.refreshButton')}
           </Button>
           <Button

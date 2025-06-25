@@ -10,10 +10,18 @@ import 'dayjs/locale/zh-cn';
 
 // ----------------------------------------------------------------------
 
-export default function TableToolBar({ filterName, handleFilterName, userIsAdmin }) {
+export default function TableToolBar({ filterName, handleFilterName, userIsAdmin, onSearch }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const grey500 = theme.palette.grey[500];
+
+  // 处理回车键搜索
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && onSearch) {
+      event.preventDefault();
+      onSearch();
+    }
+  };
 
   return (
     <>
@@ -35,6 +43,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
             label={t('tableToolBar.tokenName')}
             value={filterName.token_name}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('tableToolBar.tokenName')}
             startAdornment={
               <InputAdornment position="start">
@@ -54,6 +63,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
             label={t('tableToolBar.modelName')}
             value={filterName.model_name}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('tableToolBar.modelName')}
             startAdornment={
               <InputAdornment position="start">
@@ -73,6 +83,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
             label={t('tableToolBar.sourceIp')}
             value={filterName.source_ip}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('tableToolBar.sourceIp')}
             startAdornment={
               <InputAdornment position="start">
@@ -145,6 +156,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
               label={t('tableToolBar.channelId')}
               value={filterName.channel_id}
               onChange={handleFilterName}
+              onKeyDown={handleKeyDown}
               placeholder={t('tableToolBar.channelId')}
               startAdornment={
                 <InputAdornment position="start">
@@ -165,6 +177,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
               label={t('tableToolBar.username')}
               value={filterName.username}
               onChange={handleFilterName}
+              onKeyDown={handleKeyDown}
               placeholder={t('tableToolBar.username')}
               startAdornment={
                 <InputAdornment position="start">
@@ -182,5 +195,6 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
 TableToolBar.propTypes = {
   filterName: PropTypes.object,
   handleFilterName: PropTypes.func,
-  userIsAdmin: PropTypes.bool
+  userIsAdmin: PropTypes.bool,
+  onSearch: PropTypes.func
 };

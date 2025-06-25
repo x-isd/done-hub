@@ -9,10 +9,18 @@ import 'dayjs/locale/zh-cn';
 // ----------------------------------------------------------------------
 import { useTranslation } from 'react-i18next';
 
-export default function TableToolBar({ filterName, handleFilterName, userIsAdmin }) {
+export default function TableToolBar({ filterName, handleFilterName, userIsAdmin, onSearch }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const grey500 = theme.palette.grey[500];
+
+  // 处理回车键搜索
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && onSearch) {
+      event.preventDefault();
+      onSearch();
+    }
+  };
 
   return (
     <>
@@ -29,6 +37,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
               label={t('tableToolBar.channelId')}
               value={filterName.channel_id}
               onChange={handleFilterName}
+              onKeyDown={handleKeyDown}
               placeholder={t('tableToolBar.channelIdPlaceholder')}
               startAdornment={
                 <InputAdornment position="start">
@@ -49,6 +58,7 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
             label={t('tableToolBar.taskId')}
             value={filterName.mj_id}
             onChange={handleFilterName}
+            onKeyDown={handleKeyDown}
             placeholder={t('tableToolBar.taskIdPlaceholder')}
             startAdornment={
               <InputAdornment position="start">
@@ -111,5 +121,6 @@ export default function TableToolBar({ filterName, handleFilterName, userIsAdmin
 TableToolBar.propTypes = {
   filterName: PropTypes.object,
   handleFilterName: PropTypes.func,
-  userIsAdmin: PropTypes.bool
+  userIsAdmin: PropTypes.bool,
+  onSearch: PropTypes.func
 };

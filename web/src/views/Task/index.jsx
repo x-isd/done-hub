@@ -66,8 +66,18 @@ export default function Task() {
   };
 
   const searchLogs = async () => {
+    // 如果正在搜索中，防止重复提交
+    if (searching) {
+      return;
+    }
+
     setPage(0);
-    setSearchKeyword(toolBarValue);
+    // 使用时间戳来确保即使搜索条件相同也能触发重新搜索
+    const searchPayload = {
+      ...toolBarValue,
+      _timestamp: Date.now()
+    };
+    setSearchKeyword(searchPayload);
   };
 
   const handleToolBarValue = (event) => {
@@ -78,6 +88,12 @@ export default function Task() {
     async (page, rowsPerPage, keyword, order, orderBy) => {
       setSearching(true);
       keyword = trims(keyword);
+
+      // 移除仅用于触发状态更新的时间戳字段
+      if (keyword._timestamp) {
+        delete keyword._timestamp;
+      }
+
       try {
         if (orderBy) {
           orderBy = order === 'desc' ? '-' + orderBy : orderBy;
@@ -125,6 +141,14 @@ export default function Task() {
 
   return (
     <>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
         <Stack direction="column" spacing={1}>
           <Typography variant="h2">{t('taskPage.title')}</Typography>
@@ -135,7 +159,7 @@ export default function Task() {
       </Stack>
       <Card>
         <Box component="form" noValidate>
-          <TableToolBar filterName={toolBarValue} handleFilterName={handleToolBarValue} userIsAdmin={userIsAdmin} />
+          <TableToolBar filterName={toolBarValue} handleFilterName={handleToolBarValue} userIsAdmin={userIsAdmin} onSearch={searchLogs} />
         </Box>
         <Toolbar
           sx={{
@@ -148,12 +172,37 @@ export default function Task() {
         >
           <Container maxWidth="xl">
             <ButtonGroup variant="outlined" aria-label="outlined small primary button group">
-              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-bold-duotone" width={18} />}>
+              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
                 {t('midjourneyPage.refreshClearSearch')}
               </Button>
 
-              <Button onClick={searchLogs} startIcon={<Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />}>
-                {t('midjourneyPage.search')}
+              <Button
+                onClick={searchLogs}
+                startIcon={
+                  searching ? (
+                    <Icon
+                      icon="solar:refresh-bold-duotone"
+                      width={18}
+                      style={{
+                        animation: 'spin 1s linear infinite',
+                        color: '#1976d2'
+                      }}
+                    />
+                  ) : (
+                    <Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />
+                  )
+                }
+                sx={{
+                  ...(searching && {
+                    bgcolor: 'action.hover',
+                    color: 'primary.main',
+                    '&:hover': {
+                      bgcolor: 'action.selected'
+                    }
+                  })
+                }}
+              >
+                {searching ? '搜索中...' : t('midjourneyPage.search')}
               </Button>
             </ButtonGroup>
           </Container>

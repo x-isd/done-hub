@@ -195,7 +195,7 @@ export default function Gateway() {
         >
           <Container>
             <ButtonGroup variant="outlined" aria-label="outlined small primary button group">
-              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-bold-duotone" width={18} />}>
+              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
                 {t('paymentGatewayPage.refreshClear')}
               </Button>
               <Button onClick={search} startIcon={<Icon icon="solar:minimalistic-magnifer-line-duotone" width={18} />}>

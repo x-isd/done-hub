@@ -134,10 +134,18 @@ export default function ChannelList() {
   }, []);
 
   const searchChannels = async () => {
-    // event.preventDefault();
-    // const formData = new FormData(event.target);
+    // 如果正在搜索中，防止重复提交
+    if (searching) {
+      return;
+    }
+
     setPage(0);
-    setSearchKeyword(toolBarValue);
+    // 使用时间戳来确保即使搜索条件相同也能触发重新搜索
+    const searchPayload = {
+      ...toolBarValue,
+      _timestamp: Date.now()
+    };
+    setSearchKeyword(searchPayload);
   };
 
   const handleToolBarValue = (event) => {
@@ -330,6 +338,12 @@ export default function ChannelList() {
   const fetchData = async (page, rowsPerPage, keyword, order, orderBy) => {
     setSearching(true);
     keyword = trims(keyword);
+
+    // 移除仅用于触发状态更新的时间戳字段
+    if (keyword._timestamp) {
+      delete keyword._timestamp;
+    }
+
     const data = await fetchChannelData(page, rowsPerPage, keyword, order, orderBy);
 
     if (data) {
@@ -449,6 +463,14 @@ export default function ChannelList() {
 
   return (
     <AdminContainer>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
         <Stack direction="column" spacing={1}>
           <Typography variant="h2">{t('channel_index.channel')}</Typography>
@@ -481,7 +503,13 @@ export default function ChannelList() {
       </Stack>
       <Card>
         <Box component="form" noValidate>
-          <TableToolBar filterName={toolBarValue} handleFilterName={handleToolBarValue} groupOptions={groupOptions} tags={tags} />
+          <TableToolBar
+            filterName={toolBarValue}
+            handleFilterName={handleToolBarValue}
+            groupOptions={groupOptions}
+            tags={tags}
+            onSearch={searchChannels}
+          />
         </Box>
 
         <Toolbar
@@ -517,8 +545,33 @@ export default function ChannelList() {
                 <Button onClick={() => handleRefresh(true)} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
                   {t('channel_index.refreshClearSearchConditions')}
                 </Button>
-                <Button onClick={searchChannels} startIcon={<Icon icon="solar:magnifer-bold-duotone" width={18} />}>
-                  {t('channel_index.search')}
+                <Button
+                  onClick={searchChannels}
+                  startIcon={
+                    searching ? (
+                      <Icon
+                        icon="solar:refresh-bold-duotone"
+                        width={18}
+                        style={{
+                          animation: 'spin 1s linear infinite',
+                          color: '#1976d2'
+                        }}
+                      />
+                    ) : (
+                      <Icon icon="solar:magnifer-bold-duotone" width={18} />
+                    )
+                  }
+                  sx={{
+                    ...(searching && {
+                      bgcolor: 'action.hover',
+                      color: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'action.selected'
+                      }
+                    })
+                  }}
+                >
+                  {searching ? '搜索中...' : t('channel_index.search')}
                 </Button>
                 <Button
                   onClick={() => handlePopoverOpen(t('channel_index.testAllChannels'), testAllChannels)}
@@ -550,8 +603,28 @@ export default function ChannelList() {
                 <IconButton onClick={() => handleRefresh(true)} size="large">
                   <Icon width={20} icon="solar:refresh-circle-bold-duotone" />
                 </IconButton>
-                <IconButton onClick={searchChannels} size="large">
-                  <Icon width={20} icon="solar:magnifer-bold-duotone" />
+                <IconButton
+                  onClick={searchChannels}
+                  size="large"
+                  sx={{
+                    ...(searching && {
+                      bgcolor: 'action.hover',
+                      color: 'primary.main'
+                    })
+                  }}
+                >
+                  {searching ? (
+                    <Icon
+                      width={20}
+                      icon="solar:refresh-bold-duotone"
+                      style={{
+                        animation: 'spin 1s linear infinite',
+                        color: '#1976d2'
+                      }}
+                    />
+                  ) : (
+                    <Icon width={20} icon="solar:magnifer-bold-duotone" />
+                  )}
                 </IconButton>
                 <IconButton onClick={() => handlePopoverOpen(t('channel_index.testAllChannels'), testAllChannels)} size="large">
                   <Icon width={20} icon="solar:test-tube-bold-duotone" />

@@ -167,7 +167,7 @@ export default function UserGroup() {
         >
           <Container maxWidth="xl">
             <ButtonGroup variant="outlined" aria-label="outlined small primary button group">
-              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-bold-duotone" width={18} />}>
+              <Button onClick={handleRefresh} startIcon={<Icon icon="solar:refresh-circle-bold-duotone" width={18} />}>
                 {t('userPage.refresh')}
               </Button>
             </ButtonGroup>
