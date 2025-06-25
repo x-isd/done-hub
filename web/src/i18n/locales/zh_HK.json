@@ -1339,7 +1339,7 @@
   "使用代码执行功能，开启后，计算tokens不准确，建议个人使用开启": "使用代碼執行功能，開啟後，計算tokens不準確，建議個人使用開啟",
   "使用网页搜索功能，对用户输入的内容进行搜索": "使用網頁搜索功能，對用戶輸入的內容進行搜索",
   "其他参数": "其他參數",
-  "可空，请输入中转API地址，例如通过cloudflare中转": "可空，請輸入中轉API地址，例如通過cloudflare中轉",
+  "可空，请输入中转API地址，例如通过cloudflare中转": "可空，請輸入中轉API地址，例如通過cloudflare中轉。支持使用{model}變數，例如：https://api.example.com/v1/{model}/chat",
   "启用": "啟用",
   "地址填写Suno-API部署的地址": "地址填寫Suno-API部署的地址",
   "地址填写midjourney-proxy部署的地址": "地址填寫midjourney-proxy部署的地址",

@@ -124,6 +124,11 @@ func (p *OpenAIProvider) GetFullRequestURL(requestURL string, modelName string) 
 			requestURL += fmt.Sprintf("?model=%s", modelName)
 		}
 
+		// 处理 {model} 占位符替换（realtime 模式）
+		if strings.Contains(baseURL, "{model}") && modelName != "" {
+			baseURL = strings.ReplaceAll(baseURL, "{model}", modelName)
+		}
+
 		return fmt.Sprintf("%s%s", baseURL, requestURL)
 	}
 
@@ -158,6 +163,12 @@ func (p *OpenAIProvider) GetFullRequestURL(requestURL string, modelName string) 
 		} else {
 			requestURL = strings.TrimPrefix(requestURL, "/v1")
 		}
+	}
+
+	// 处理 {model} 占位符替换（适用于自定义渠道）
+	// 检查 baseURL 中是否包含 {model} 占位符，如果包含且 modelName 不为空，则进行替换
+	if strings.Contains(baseURL, "{model}") && modelName != "" {
+		baseURL = strings.ReplaceAll(baseURL, "{model}", modelName)
 	}
 
 	return fmt.Sprintf("%s%s", baseURL, requestURL)

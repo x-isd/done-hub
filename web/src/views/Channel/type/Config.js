@@ -42,7 +42,7 @@ const defaultConfig = {
   prompt: {
     type: '请选择渠道类型',
     name: '请为渠道命名',
-    base_url: '可空，请输入中转API地址，例如通过cloudflare中转',
+    base_url: '可空，请输入中转API地址，例如通过cloudflare中转。支持使用{model}变量，例如：https://api.example.com/v1/{model}/chat',
     key: '请输入渠道对应的鉴权密钥',
     other: '',
     proxy:
@@ -64,7 +64,7 @@ const defaultConfig = {
   },
   modelGroup: 'OpenAI',
   compatible_response: '兼容Response API'
-}
+};
 
 const typeConfig = {
   1: {
@@ -527,6 +527,6 @@ const typeConfig = {
       provider_models_list: '从OR获取模型列表'
     }
   }
-}
+};
 
-export { defaultConfig, typeConfig }
+export { defaultConfig, typeConfig };
