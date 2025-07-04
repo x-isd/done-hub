@@ -20,21 +20,23 @@ type AlipayConfig struct {
 	PayType    PayType `json:"pay_type"`
 }
 
-var client *alipay.Client
-
 const isProduction bool = true
 
 func (a *Alipay) Name() string {
 	return "支付宝"
 }
 
-func (a *Alipay) InitClient(config *AlipayConfig) error {
-	var err error
-	client, err = alipay.New(config.AppID, config.PrivateKey, isProduction)
+// createClient 创建支付宝客户端，每次调用都创建新实例
+func (a *Alipay) createClient(config *AlipayConfig) (*alipay.Client, error) {
+	client, err := alipay.New(config.AppID, config.PrivateKey, isProduction)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return client.LoadAliPayPublicKey(config.PublicKey)
+	err = client.LoadAliPayPublicKey(config.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (a *Alipay) Pay(config *types.PayConfig, gatewayConfig string) (*types.PayRequest, error) {
@@ -43,24 +45,34 @@ func (a *Alipay) Pay(config *types.PayConfig, gatewayConfig string) (*types.PayR
 		return nil, err
 	}
 
-	if client == nil {
-		err := a.InitClient(alipayConfig)
-		if err != nil {
-			return nil, err
-		}
+	client, err := a.createClient(alipayConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	switch alipayConfig.PayType {
 	case PagePay:
-		return a.handlePagePay(config)
+		return a.handlePagePay(config, client)
 	case WapPay:
-		return a.handleWapPay(config)
+		return a.handleWapPay(config, client)
 	default:
-		return a.handleTradePreCreate(config)
+		return a.handleTradePreCreate(config, client)
 	}
 }
 
 func (a *Alipay) HandleCallback(c *gin.Context, gatewayConfig string) (*types.PayNotify, error) {
+	alipayConfig, err := getAlipayConfig(gatewayConfig)
+	if err != nil {
+		c.Writer.Write([]byte("failure"))
+		return nil, err
+	}
+
+	client, err := a.createClient(alipayConfig)
+	if err != nil {
+		c.Writer.Write([]byte("failure"))
+		return nil, err
+	}
+
 	// 获取通知参数
 	params := c.Request.URL.Query()
 	if err := c.Request.ParseForm(); err != nil {
@@ -76,7 +88,7 @@ func (a *Alipay) HandleCallback(c *gin.Context, gatewayConfig string) (*types.Pa
 		return nil, fmt.Errorf("Alipay Signature verification failed: %v", err)
 	}
 	//解析通知内容
-	var noti, err = client.DecodeNotification(params)
+	noti, err := client.DecodeNotification(params)
 	if err != nil {
 		c.Writer.Write([]byte("failure"))
 		return nil, fmt.Errorf("Alipay Error decoding notification: %v", err)
