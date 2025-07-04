@@ -148,7 +148,7 @@ func PaymentCallback(c *gin.Context) {
 		logger.SysError(fmt.Sprintf("gateway callback failed to find order, trade_no: %s,", payNotify.TradeNo))
 		return
 	}
-	fmt.Println(order.Status, order.Status != model.OrderStatusPending)
+	//fmt.Println(order.Status, order.Status != model.OrderStatusPending)
 
 	if order.Status != model.OrderStatusPending {
 		return
