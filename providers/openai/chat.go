@@ -26,6 +26,11 @@ type OpenAIStreamHandler struct {
 func (p *OpenAIProvider) CreateChatCompletion(request *types.ChatCompletionRequest) (openaiResponse *types.ChatCompletionResponse, errWithCode *types.OpenAIErrorWithStatusCode) {
 	otherProcessing(request, p.GetOtherArg())
 
+	// 对于自定义渠道，过滤空content的消息以保持与其他渠道一致的行为
+	if p.Channel.Type == config.ChannelTypeCustom {
+		request.Messages = common.FilterEmptyContentMessages(request.Messages)
+	}
+
 	req, errWithCode := p.GetRequestTextBody(config.RelayModeChatCompletions, request.Model, request)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -69,6 +74,12 @@ func (p *OpenAIProvider) CreateChatCompletion(request *types.ChatCompletionReque
 
 func (p *OpenAIProvider) CreateChatCompletionStream(request *types.ChatCompletionRequest) (requester.StreamReaderInterface[string], *types.OpenAIErrorWithStatusCode) {
 	otherProcessing(request, p.GetOtherArg())
+
+	// 对于自定义渠道，过滤空content的消息以保持与其他渠道一致的行为
+	if p.Channel.Type == config.ChannelTypeCustom {
+		request.Messages = common.FilterEmptyContentMessages(request.Messages)
+	}
+
 	streamOptions := request.StreamOptions
 	// 如果支持流式返回Usage 则需要更改配置：
 	if p.SupportStreamOptions {

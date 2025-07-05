@@ -26,6 +26,9 @@ func (p *BaiduProvider) CreateChatCompletion(request *types.ChatCompletionReques
 		return p.OpenAIProvider.CreateChatCompletion(request)
 	}
 
+	// 可选：如果百度渠道需要过滤空content消息，可以取消注释下面这行
+	// request.Messages = common.FilterEmptyContentMessages(request.Messages)
+
 	req, errWithCode := p.getBaiduChatRequest(request)
 	if errWithCode != nil {
 		return nil, errWithCode
@@ -50,6 +53,9 @@ func (p *BaiduProvider) CreateChatCompletionStream(request *types.ChatCompletion
 		}
 		return p.OpenAIProvider.CreateChatCompletionStream(request)
 	}
+
+	// 可选：如果百度渠道需要过滤空content消息，可以取消注释下面这行
+	// request.Messages = common.FilterEmptyContentMessages(request.Messages)
 
 	req, errWithCode := p.getBaiduChatRequest(request)
 	if errWithCode != nil {
