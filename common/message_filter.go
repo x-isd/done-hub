@@ -29,15 +29,6 @@ func FilterEmptyContentMessages(messages []types.ChatCompletionMessage) []types.
 	return filteredMessages
 }
 
-// IsMessageContentEmpty 检查消息的content是否为空
-// 只有在content完全为空且没有其他重要字段时才认为消息为空
-// 参数:
-- message: 要检查的消息
-//
-/
-//   - message: 要检查的消息
-// 返回值:
-//   - bool: true表示消息内容为空，false表示有有效内容
 func IsMessageContentEmpty(message types.ChatCompletionMessage) bool {
 	// 如果消息有tool_calls、function_call等重要字段，不认为是空消息
 	if message.ToolCalls != nil || message.FunctionCall != nil || message.ToolCallID != "" {
@@ -79,15 +70,6 @@ func IsMessageContentEmpty(message types.ChatCompletionMessage) bool {
 	return !hasNonEmptyContent
 }
 
-// FilterEmptyContentParts 过滤消息中的空content部分（类似Gemini的处理方式）
-content部分
-// 参数:
-//   - messages: 
-// 这个函数不会移除整个消息，只会移除消息中的空content部分
-// 参数:
-//   - messages: 原始消息列表
-// 返回值:
-//   - []types.ChatCompletionMessage: 处理后的消息列表
 func FilterEmptyContentParts(messages []types.ChatCompletionMessage) []types.ChatCompletionMessage {
 	if len(messages) == 0 {
 		return messages
@@ -118,7 +100,7 @@ func FilterEmptyContentParts(messages []types.ChatCompletionMessage) []types.Cha
 						filteredParts = append(filteredParts, part)
 					}
 				}
-				
+
 				// 如果过滤后还有内容，更新消息的content
 				if len(filteredParts) > 0 {
 					// 这里需要将filteredParts转换回原始格式
