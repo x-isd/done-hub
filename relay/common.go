@@ -535,9 +535,20 @@ func mergeCustomParamsForPreMapping(requestMap map[string]interface{}, customPar
 		}
 	}
 
+	// 处理参数删除
+	if removeParams, exists := customParamsModel["remove_params"]; exists {
+		if paramsList, ok := removeParams.([]interface{}); ok {
+			for _, param := range paramsList {
+				if paramName, ok := param.(string); ok {
+					delete(requestMap, paramName)
+				}
+			}
+		}
+	}
+
 	// 添加额外参数
 	for key, value := range customParamsModel {
-		if key == "stream" || key == "overwrite" || key == "per_model" || key == "pre_add" {
+		if key == "stream" || key == "overwrite" || key == "per_model" || key == "pre_add" || key == "remove_params" {
 			continue
 		}
 
