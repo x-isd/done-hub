@@ -173,8 +173,14 @@ func (h *OpenAIStreamHandler) HandlerChatStream(rawLine *[]byte, dataChan chan s
 			if h.Usage.TotalTokens == 0 {
 				h.Usage.TotalTokens = h.Usage.PromptTokens
 			}
-			h.Usage.TextBuilder.WriteString(openaiResponse.GetResponseText())
 		}
+	}
+
+	// 始终累积流式内容到 TextBuilder，用于流中断时的 token 计算备用
+	// 即使上游返回了 Usage 信息，流中断时最终的 Usage 可能不完整
+	responseText := openaiResponse.GetResponseText()
+	if responseText != "" {
+		h.Usage.TextBuilder.WriteString(responseText)
 	}
 
 	if h.ReasoningHandler && len(openaiResponse.Choices) > 0 {
