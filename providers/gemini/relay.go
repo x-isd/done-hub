@@ -77,7 +77,7 @@ func (h *GeminiRelayStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan 
 	rawStr := string(*rawLine)
 	// 如果rawLine 前缀不为data:，则直接返回
 	if !strings.HasPrefix(rawStr, h.Prefix) {
-		dataChan <- rawStr
+		//dataChan <- rawStr
 		return
 	}
 
