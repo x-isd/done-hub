@@ -200,6 +200,7 @@ type GeminiPartCodeExecutionResult struct {
 type GeminiFunctionCall struct {
 	Name string                 `json:"name,omitempty"`
 	Args map[string]interface{} `json:"args,omitempty"`
+	Id   string                 `json:"-"` // 忽略 OpenAI 格式的 id 字段
 }
 
 func (candidate *GeminiChatCandidate) ToOpenAIStreamChoice(request *types.ChatCompletionRequest) types.ChatCompletionStreamChoice {
@@ -404,8 +405,8 @@ type GeminiChatSafetySettings struct {
 type GeminiChatTools struct {
 	FunctionDeclarations  []types.ChatCompletionFunction `json:"functionDeclarations,omitempty"`
 	CodeExecution         *GeminiCodeExecution           `json:"codeExecution,omitempty"`
-	GoogleSearch          any                            `json:"googleSearch,omitempty"`
-	UrlContext            any                            `json:"urlContext,omitempty"`
+	GoogleSearch          *GeminiCodeExecution           `json:"googleSearch,omitempty"`
+	UrlContext            *GeminiCodeExecution           `json:"urlContext,omitempty"`
 	GoogleSearchRetrieval any                            `json:"googleSearchRetrieval,omitempty"`
 }
 

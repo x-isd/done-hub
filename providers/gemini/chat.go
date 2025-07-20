@@ -104,7 +104,13 @@ func (p *GeminiProvider) getChatRequest(geminiRequest *GeminiChatRequest, isRela
 
 	var body any
 	if isRelay {
-		body = geminiRequest.GetJsonRaw()
+		// 对于 relay 模式，需要清理原始 JSON 数据中不兼容的字段
+		rawData := geminiRequest.GetJsonRaw()
+		cleanedData, err := CleanGeminiRequestData(rawData, false)
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "clean_relay_data_failed", http.StatusInternalServerError)
+		}
+		body = cleanedData
 	} else {
 		p.pluginHandle(geminiRequest)
 		body = geminiRequest
@@ -117,6 +123,85 @@ func (p *GeminiProvider) getChatRequest(geminiRequest *GeminiChatRequest, isRela
 	}
 
 	return req, nil
+}
+
+// CleanGeminiRequestData 清理 Gemini 请求数据中的不兼容字段
+func CleanGeminiRequestData(rawData []byte, isVertexAI bool) ([]byte, error) {
+	var data map[string]interface{}
+	if err := json.Unmarshal(rawData, &data); err != nil {
+		return nil, err
+	}
+
+	// 清理 contents 中的 function_call 字段中的 id
+	if contents, ok := data["contents"].([]interface{}); ok {
+		for _, content := range contents {
+			if contentMap, ok := content.(map[string]interface{}); ok {
+				if parts, ok := contentMap["parts"].([]interface{}); ok {
+					for _, part := range parts {
+						if partMap, ok := part.(map[string]interface{}); ok {
+							// 检查所有可能的字段名：functionCall, function_call
+							fieldNames := []string{"functionCall", "function_call"}
+							for _, fieldName := range fieldNames {
+								if functionCall, ok := partMap[fieldName].(map[string]interface{}); ok {
+									delete(functionCall, "id")
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 如果是 Vertex AI，还需要清理 tools 中的 tool_type 字段
+	if isVertexAI {
+		if tools, ok := data["tools"].([]interface{}); ok {
+			var validTools []interface{}
+			for _, tool := range tools {
+				if toolMap, ok := tool.(map[string]interface{}); ok {
+					// 移除所有可能的 tool_type 相关字段，因为 Gemini API 不需要
+					delete(toolMap, "tool_type")
+					delete(toolMap, "toolType")
+					delete(toolMap, "type")
+
+					// 检查工具是否为空（只有空的 functionDeclarations）
+					if functionDeclarations, ok := toolMap["functionDeclarations"].([]interface{}); ok {
+						if len(functionDeclarations) == 0 {
+							// 跳过空的工具
+							continue
+						}
+					}
+
+					// 检查工具是否有任何有效内容
+					hasValidContent := false
+					for key, value := range toolMap {
+						if key == "functionDeclarations" {
+							if arr, ok := value.([]interface{}); ok && len(arr) > 0 {
+								hasValidContent = true
+								break
+							}
+						} else if value != nil {
+							hasValidContent = true
+							break
+						}
+					}
+
+					if hasValidContent {
+						validTools = append(validTools, toolMap)
+					}
+				}
+			}
+
+			// 如果没有有效工具，移除整个 tools 字段
+			if len(validTools) == 0 {
+				delete(data, "tools")
+			} else {
+				data["tools"] = validTools
+			}
+		}
+	}
+
+	return json.Marshal(data)
 }
 
 func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*GeminiChatRequest, *types.OpenAIErrorWithStatusCode) {
@@ -223,7 +308,7 @@ func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*GeminiChatReq
 			})
 		}
 
-		if len(geminiRequest.Tools) == 0 {
+		if len(geminiRequest.Tools) == 0 && len(geminiChatTools.FunctionDeclarations) > 0 {
 			geminiRequest.Tools = append(geminiRequest.Tools, geminiChatTools)
 		}
 	}

@@ -3,8 +3,10 @@ package vertexai
 import (
 	"done-hub/common"
 	"done-hub/common/requester"
+	"done-hub/providers/gemini"
 	"done-hub/providers/vertexai/category"
 	"done-hub/types"
+	"encoding/json"
 	"net/http"
 )
 
@@ -70,11 +72,29 @@ func (p *VertexAIProvider) getChatRequest(request *types.ChatCompletionRequest) 
 		return nil, errWithCode
 	}
 
+	// 对于 Gemini 模型，需要清理请求数据
+	var finalRequest any = vertexaiRequest
+	if p.Category.Category == "gemini" {
+		// 序列化请求以便清理
+		rawData, err := json.Marshal(vertexaiRequest)
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "marshal_vertexai_request_failed", http.StatusInternalServerError)
+		}
+
+		// 清理数据
+		cleanedData, err := gemini.CleanGeminiRequestData(rawData, true)
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "clean_vertexai_request_failed", http.StatusInternalServerError)
+		}
+
+		finalRequest = cleanedData
+	}
+
 	// 错误处理
 	p.Requester.ErrorHandler = RequestErrorHandle(p.Category.ErrorHandler)
 
 	// 使用BaseProvider的统一方法创建请求，支持额外参数处理
-	req, errWithCode := p.NewRequestWithCustomParams(http.MethodPost, fullRequestURL, vertexaiRequest, headers, request.Model)
+	req, errWithCode := p.NewRequestWithCustomParams(http.MethodPost, fullRequestURL, finalRequest, headers, request.Model)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}

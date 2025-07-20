@@ -86,8 +86,15 @@ func (p *VertexAIProvider) getGeminiRequest(request *gemini.GeminiChatRequest) (
 	// 错误处理
 	p.Requester.ErrorHandler = RequestErrorHandle(p.Category.ErrorHandler)
 
+	// 清理原始 JSON 数据中不兼容的字段
+	rawData := request.GetJsonRaw()
+	cleanedData, err := gemini.CleanGeminiRequestData(rawData, true)
+	if err != nil {
+		return nil, common.ErrorWrapper(err, "clean_vertexai_gemini_data_failed", http.StatusInternalServerError)
+	}
+
 	// 使用BaseProvider的统一方法创建请求，支持额外参数处理
-	req, errWithCode := p.NewRequestWithCustomParams(http.MethodPost, fullRequestURL, request.GetJsonRaw(), headers, request.Model)
+	req, errWithCode := p.NewRequestWithCustomParams(http.MethodPost, fullRequestURL, cleanedData, headers, request.Model)
 	if errWithCode != nil {
 		return nil, errWithCode
 	}
