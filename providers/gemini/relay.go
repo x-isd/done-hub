@@ -15,7 +15,7 @@ type GeminiRelayStreamHandler struct {
 	Prefix    string
 	ModelName string
 
-	key string
+	Key string
 }
 
 func (p *GeminiProvider) CreateGeminiChat(request *GeminiChatRequest) (*GeminiChatResponse, *types.OpenAIErrorWithStatusCode) {
@@ -56,7 +56,7 @@ func (p *GeminiProvider) CreateGeminiChatStream(request *GeminiChatRequest) (req
 		ModelName: request.Model,
 		Prefix:    `data: `,
 
-		key: channel.Key,
+		Key: channel.Key,
 	}
 
 	// 发送请求
@@ -92,20 +92,19 @@ func (h *GeminiRelayStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan 
 	}
 
 	if geminiResponse.ErrorInfo != nil {
-		cleaningError(geminiResponse.ErrorInfo, h.key)
+		cleaningError(geminiResponse.ErrorInfo, h.Key)
 		errChan <- geminiResponse.ErrorInfo
 		return
 	}
 
-	if geminiResponse.UsageMetadata == nil {
-		dataChan <- rawStr
-		return
-	}
-
-	h.Usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
-	h.Usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
-	h.Usage.CompletionTokensDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
-	h.Usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
-
+	// 直接转发原始 Gemini 格式响应
 	dataChan <- rawStr
+
+	// 处理使用量统计
+	if geminiResponse.UsageMetadata != nil {
+		h.Usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
+		h.Usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
+		h.Usage.CompletionTokensDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
+		h.Usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
+	}
 }

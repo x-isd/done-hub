@@ -164,8 +164,19 @@ func CleanGeminiRequestData(rawData []byte, isVertexAI bool) ([]byte, error) {
 					delete(toolMap, "toolType")
 					delete(toolMap, "type")
 
-					// 检查工具是否为空（只有空的 functionDeclarations）
+					// 清理 functionDeclarations 中的 $schema 字段
 					if functionDeclarations, ok := toolMap["functionDeclarations"].([]interface{}); ok {
+						for _, funcDecl := range functionDeclarations {
+							if funcDeclMap, ok := funcDecl.(map[string]interface{}); ok {
+								if parameters, ok := funcDeclMap["parameters"].(map[string]interface{}); ok {
+									// 移除 Vertex AI 不支持的 $schema 字段
+									delete(parameters, "$schema")
+									// 递归清理嵌套的 schema 对象
+									cleanSchemaRecursively(parameters)
+								}
+							}
+						}
+
 						if len(functionDeclarations) == 0 {
 							// 跳过空的工具
 							continue
@@ -202,6 +213,25 @@ func CleanGeminiRequestData(rawData []byte, isVertexAI bool) ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+// cleanSchemaRecursively 递归清理 schema 对象中的 $schema 字段
+func cleanSchemaRecursively(obj interface{}) {
+	switch v := obj.(type) {
+	case map[string]interface{}:
+		// 删除 $schema 字段
+		delete(v, "$schema")
+
+		// 递归处理所有值
+		for _, value := range v {
+			cleanSchemaRecursively(value)
+		}
+	case []interface{}:
+		// 递归处理数组中的每个元素
+		for _, item := range v {
+			cleanSchemaRecursively(item)
+		}
+	}
 }
 
 func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*GeminiChatRequest, *types.OpenAIErrorWithStatusCode) {

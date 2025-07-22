@@ -41,10 +41,14 @@ func (p *VertexAIProvider) CreateGeminiChatStream(request *gemini.GeminiChatRequ
 	}
 	defer req.Body.Close()
 
+	channel := p.GetChannel()
+
 	chatHandler := &gemini.GeminiRelayStreamHandler{
 		Usage:     p.Usage,
 		ModelName: request.Model,
 		Prefix:    `data: `,
+
+		Key: channel.Key,
 	}
 
 	// 发送请求
