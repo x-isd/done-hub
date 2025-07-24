@@ -12,6 +12,7 @@ import (
 	"done-hub/safty"
 	"done-hub/types"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -46,6 +47,15 @@ func (r *relayClaudeOnly) setRequest() error {
 		return err
 	}
 	r.setOriginalModel(r.claudeRequest.Model)
+
+	// 检测背景任务（参考demo逻辑）
+	if r.isBackgroundTask() {
+
+		return r.handleBackgroundTaskInSetRequest()
+	}
+
+	// 保持原始的流式/非流式状态
+
 	return nil
 }
 
@@ -63,10 +73,12 @@ func (r *relayClaudeOnly) getPromptTokens() (int, error) {
 }
 
 func (r *relayClaudeOnly) send() (err *types.OpenAIErrorWithStatusCode, done bool) {
+
 	// 检查是否为自定义渠道，如果是则使用Claude->OpenAI->Claude的转换逻辑
 	channelType := r.provider.GetChannel().Type
 
 	if channelType == config.ChannelTypeCustom {
+
 		return r.sendCustomChannelWithClaudeFormat()
 	}
 
@@ -212,9 +224,11 @@ func CountTokenMessages(request *claude.ClaudeRequest, preCostType int) (int, er
 // sendCustomChannelWithClaudeFormat 处理自定义渠道的Claude格式请求
 // 仅在 /claude/v1/messages 路由时调用，实现 Claude格式 -> OpenAI格式 -> 上游接口 -> OpenAI响应 -> Claude格式 的转换
 func (r *relayClaudeOnly) sendCustomChannelWithClaudeFormat() (err *types.OpenAIErrorWithStatusCode, done bool) {
+
 	// 将Claude请求转换为OpenAI格式
 	openaiRequest, err := r.convertClaudeToOpenAI()
 	if err != nil {
+
 		return err, true
 	}
 
@@ -244,9 +258,11 @@ func (r *relayClaudeOnly) sendCustomChannelWithClaudeFormat() (err *types.OpenAI
 
 	if r.claudeRequest.Stream {
 		// 处理流式响应
+
 		var stream requester.StreamReaderInterface[string]
 		stream, err = openaiProvider.CreateChatCompletionStream(openaiRequest)
 		if err != nil {
+
 			return err, true
 		}
 
@@ -259,9 +275,11 @@ func (r *relayClaudeOnly) sendCustomChannelWithClaudeFormat() (err *types.OpenAI
 		r.SetFirstResponseTime(time.Unix(firstResponseTime, 0))
 	} else {
 		// 处理非流式响应
+
 		var openaiResponse *types.ChatCompletionResponse
 		openaiResponse, err = openaiProvider.CreateChatCompletion(openaiRequest)
 		if err != nil {
+
 			return err, true
 		}
 
@@ -274,8 +292,12 @@ func (r *relayClaudeOnly) sendCustomChannelWithClaudeFormat() (err *types.OpenAI
 		openErr := responseJsonClient(r.c, claudeResponse)
 
 		if openErr != nil {
-			err = openErr
+			// 对于响应发送错误（如客户端断开连接），不应该触发重试
+			// 这种错误是客户端问题，不是服务端问题
+
+			// 不设置 err，避免触发重试机制
 		}
+
 	}
 
 	return err, false
@@ -295,13 +317,16 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 
 	// 处理系统消息
 	if r.claudeRequest.System != nil {
+
 		switch sys := r.claudeRequest.System.(type) {
 		case string:
+
 			openaiRequest.Messages = append(openaiRequest.Messages, types.ChatCompletionMessage{
 				Role:    types.ChatMessageRoleSystem,
 				Content: sys,
 			})
 		case []interface{}:
+
 			// 处理数组形式的系统消息 - 每个文本部分创建单独的系统消息
 			for _, item := range sys {
 				if itemMap, ok := item.(map[string]interface{}); ok {
@@ -321,7 +346,9 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 	}
 
 	// 转换消息
+
 	for _, msg := range r.claudeRequest.Messages {
+
 		openaiMsg := types.ChatCompletionMessage{
 			Role: msg.Role,
 		}
@@ -329,6 +356,7 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 		// 处理消息内容
 		switch content := msg.Content.(type) {
 		case string:
+
 			openaiMsg.Content = content
 			openaiRequest.Messages = append(openaiRequest.Messages, openaiMsg)
 		case []interface{}:
@@ -420,7 +448,9 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 				}
 
 				// 处理 text 部分 - 每个文本部分创建单独的助手消息
+
 				for _, textPart := range textParts {
+
 					assistantMsg := types.ChatCompletionMessage{
 						Role:    types.ChatMessageRoleAssistant,
 						Content: textPart["text"].(string),
@@ -485,6 +515,8 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 		}
 	}
 
+	// 打印转换后的 OpenAI 请求内容
+
 	return openaiRequest, nil
 }
 
@@ -546,12 +578,13 @@ func (r *relayClaudeOnly) convertOpenAIResponseToClaude(openaiResponse *types.Ch
 	}
 
 	claudeResponse := &claude.ClaudeResponse{
-		Id:         "msg_" + openaiResponse.ID,
-		Type:       "message",
-		Role:       "assistant",
-		Content:    content,
-		Model:      openaiResponse.Model,
-		StopReason: stopReason,
+		Id:           "msg_" + openaiResponse.ID,
+		Type:         "message",
+		Role:         "assistant",
+		Content:      content,
+		Model:        openaiResponse.Model,
+		StopReason:   stopReason,
+		StopSequence: "", // 添加缺失的字段
 	}
 
 	// 处理使用量信息
@@ -567,6 +600,7 @@ func (r *relayClaudeOnly) convertOpenAIResponseToClaude(openaiResponse *types.Ch
 
 // convertOpenAIStreamToClaude 将OpenAI流式响应转换为Claude格式
 func (r *relayClaudeOnly) convertOpenAIStreamToClaude(stream requester.StreamReaderInterface[string]) int64 {
+
 	r.c.Header("Content-Type", "text/event-stream")
 	r.c.Header("Cache-Control", "no-cache")
 	r.c.Header("Connection", "keep-alive")
@@ -614,25 +648,10 @@ streamLoop:
 
 			if !hasStarted && !isClosed && !hasFinished {
 				hasStarted = true
-				// 发送message_start事件
-				messageStart := map[string]interface{}{
-					"type": "message_start",
-					"message": map[string]interface{}{
-						"id":            messageId,
-						"type":          "message",
-						"role":          "assistant",
-						"content":       []interface{}{},
-						"model":         model,
-						"stop_reason":   nil,
-						"stop_sequence": nil,
-						"usage": map[string]interface{}{
-							"input_tokens":  1,
-							"output_tokens": 1,
-						},
-					},
-				}
-				r.writeSSEEvent("message_start", messageStart, &isClosed)
-				flusher.Flush()
+				// 发送message_start事件（格式与demo完全一致）
+				// 直接构造JSON字符串以确保字段顺序正确
+				messageStartJSON := fmt.Sprintf(`{"type":"message_start","message":{"id":"%s","type":"message","role":"assistant","content":[],"model":"%s","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}}}`, messageId, model)
+				r.writeSSEEventRaw("message_start", messageStartJSON, &isClosed)
 			}
 
 			// 处理不同格式的流式数据
@@ -726,31 +745,16 @@ streamLoop:
 							if content != "" {
 								contentChunks++
 								if !hasTextContentStarted && !hasFinished {
-									// 发送content_block_start事件
-									contentBlockStart := map[string]interface{}{
-										"type":  "content_block_start",
-										"index": contentIndex,
-										"content_block": map[string]interface{}{
-											"type": "text",
-											"text": "",
-										},
-									}
-									r.writeSSEEvent("content_block_start", contentBlockStart, &isClosed)
-									flusher.Flush()
+									// 发送content_block_start事件（格式与demo一致）
+									contentBlockStartJSON := fmt.Sprintf(`{"type":"content_block_start","index":%d,"content_block":{"type":"text","text":""}}`, contentIndex)
+									r.writeSSEEventRaw("content_block_start", contentBlockStartJSON, &isClosed)
 									hasTextContentStarted = true
 								}
 
-								// 发送content_block_delta事件
-								contentBlockDelta := map[string]interface{}{
-									"type":  "content_block_delta",
-									"index": contentIndex,
-									"delta": map[string]interface{}{
-										"type": "text_delta",
-										"text": content,
-									},
-								}
-								r.writeSSEEvent("content_block_delta", contentBlockDelta, &isClosed)
-								flusher.Flush()
+								// 发送content_block_delta事件（格式与demo一致）
+								contentBytes, _ := json.Marshal(content)
+								contentBlockDeltaJSON := fmt.Sprintf(`{"type":"content_block_delta","index":%d,"delta":{"type":"text_delta","text":%s}}`, contentIndex, string(contentBytes))
+								r.writeSSEEventRaw("content_block_delta", contentBlockDeltaJSON, &isClosed)
 							}
 						}
 					}
@@ -768,6 +772,7 @@ streamLoop:
 
 				// 处理finish_reason
 				if finishReason, exists := choice["finish_reason"].(string); exists && finishReason != "" && !isClosed && !hasFinished {
+
 					hasFinished = true
 
 					// 警告：如果没有内容
@@ -775,14 +780,10 @@ streamLoop:
 						logger.SysLog("Warning: No content in the stream response!")
 					}
 
-					// 发送content_block_stop事件 - 复刻JavaScript逻辑
+					// 发送content_block_stop事件 - 复刻JavaScript逻辑（格式与demo一致）
 					if (hasTextContentStarted || toolCallChunks > 0) && !isClosed {
-						contentBlockStop := map[string]interface{}{
-							"type":  "content_block_stop",
-							"index": contentIndex,
-						}
-						r.writeSSEEvent("content_block_stop", contentBlockStop, &isClosed)
-						flusher.Flush()
+						contentBlockStopJSON := fmt.Sprintf(`{"type":"content_block_stop","index":%d}`, contentIndex)
+						r.writeSSEEventRaw("content_block_stop", contentBlockStopJSON, &isClosed)
 					}
 
 					// 转换停止原因
@@ -798,35 +799,36 @@ streamLoop:
 						claudeStopReason = "stop_sequence"
 					}
 
-					// 发送message_delta事件
-					messageDelta := map[string]interface{}{
-						"type": "message_delta",
-						"delta": map[string]interface{}{
-							"stop_reason":   claudeStopReason,
-							"stop_sequence": nil,
-						},
-					}
-
-					// 处理usage信息
+					// 发送message_delta事件（格式与demo一致，必须包含usage字段）
+					var messageDeltaJSON string
 					if usage, usageExists := openaiChunk["usage"].(map[string]interface{}); usageExists {
-						messageDelta["usage"] = map[string]interface{}{
-							"input_tokens":  usage["prompt_tokens"],
-							"output_tokens": usage["completion_tokens"],
+						// 安全地获取token数量，防止类型断言失败
+						inputTokens := 0
+						outputTokens := 0
+						if promptTokens, ok := usage["prompt_tokens"]; ok {
+							if tokens, ok := promptTokens.(float64); ok {
+								inputTokens = int(tokens)
+							}
 						}
+						if completionTokens, ok := usage["completion_tokens"]; ok {
+							if tokens, ok := completionTokens.(float64); ok {
+								outputTokens = int(tokens)
+							}
+						}
+						messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, claudeStopReason, inputTokens, outputTokens)
+					} else {
+						// 如果没有usage信息，使用默认值（与demo一致）
+						messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":0,"output_tokens":0}}`, claudeStopReason)
 					}
 
 					if !isClosed {
-						r.writeSSEEvent("message_delta", messageDelta, &isClosed)
-						flusher.Flush()
+						r.writeSSEEventRaw("message_delta", messageDeltaJSON, &isClosed)
 					}
 
-					// 发送message_stop事件
+					// 发送message_stop事件（格式与demo一致）
 					if !isClosed {
-						messageStop := map[string]interface{}{
-							"type": "message_stop",
-						}
-						r.writeSSEEvent("message_stop", messageStop, &isClosed)
-						flusher.Flush()
+						messageStopJSON := `{"type":"message_stop"}`
+						r.writeSSEEventRaw("message_stop", messageStopJSON, &isClosed)
 					}
 					isClosed = true
 
@@ -861,6 +863,123 @@ streamLoop:
 	}
 
 	return firstResponseTime
+}
+
+// isBackgroundTask 检测是否为背景任务（如话题分析）
+func (r *relayClaudeOnly) isBackgroundTask() bool {
+	if r.claudeRequest.System == nil {
+		return false
+	}
+
+	var systemTexts []string
+
+	switch sys := r.claudeRequest.System.(type) {
+	case string:
+		systemTexts = append(systemTexts, sys)
+	case []interface{}:
+		for _, item := range sys {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				if itemType, exists := itemMap["type"]; exists && itemType == "text" {
+					if text, textExists := itemMap["text"]; textExists {
+						if textStr, ok := text.(string); ok {
+							systemTexts = append(systemTexts, textStr)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 检查系统消息是否包含背景任务标识
+	for _, text := range systemTexts {
+		if strings.Contains(text, "Summarize this coding conversation") ||
+			strings.Contains(text, "write a 5-10 word title") ||
+			strings.Contains(text, "Analyze if this message indicates a new conversation topic") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// handleBackgroundTaskInSetRequest 在setRequest阶段处理背景任务
+func (r *relayClaudeOnly) handleBackgroundTaskInSetRequest() error {
+
+	if r.claudeRequest.Stream {
+		// 流式响应：立即结束连接
+		r.c.Header("Content-Type", "text/event-stream")
+		r.c.Header("Cache-Control", "no-cache")
+		r.c.Header("Connection", "keep-alive")
+
+		// 发送最简单的完成事件并立即结束
+		messageId := fmt.Sprintf("msg_bg_%d", utils.GetTimestamp())
+		r.c.Writer.Write([]byte(`data: {"type":"message_start","message":{"id":"` + messageId + `","type":"message","role":"assistant","content":[],"model":"` + r.modelName + `","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}` + "\n\n"))
+		r.c.Writer.Write([]byte(`data: {"type":"message_stop"}` + "\n\n"))
+
+		if flusher, ok := r.c.Writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	} else {
+		// 非流式响应：立即返回空的Claude响应
+		r.c.Header("Content-Type", "application/json")
+		emptyResponse := &claude.ClaudeResponse{
+			Id:         fmt.Sprintf("msg_bg_%d", utils.GetTimestamp()),
+			Type:       "message",
+			Role:       "assistant",
+			Content:    []claude.ResContent{},
+			Model:      r.modelName,
+			StopReason: "end_turn",
+			Usage: claude.Usage{
+				InputTokens:  0,
+				OutputTokens: 0,
+			},
+		}
+
+		r.c.JSON(http.StatusOK, emptyResponse)
+	}
+
+	// 返回一个特殊错误，表示这是背景任务，已经处理完成
+	return errors.New("background_task_handled")
+}
+
+// handleBackgroundTask 处理背景任务，立即结束响应
+func (r *relayClaudeOnly) handleBackgroundTask() (err *types.OpenAIErrorWithStatusCode, done bool) {
+
+	if r.claudeRequest.Stream {
+		// 流式响应：立即结束连接
+		r.c.Header("Content-Type", "text/event-stream")
+		r.c.Header("Cache-Control", "no-cache")
+		r.c.Header("Connection", "keep-alive")
+
+		// 发送最简单的完成事件并立即结束
+		messageId := fmt.Sprintf("msg_bg_%d", utils.GetTimestamp())
+		r.c.Writer.Write([]byte(`data: {"type":"message_start","message":{"id":"` + messageId + `","type":"message","role":"assistant","content":[],"model":"` + r.modelName + `","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}` + "\n\n"))
+		r.c.Writer.Write([]byte(`data: {"type":"message_stop"}` + "\n\n"))
+
+		if flusher, ok := r.c.Writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	} else {
+		// 非流式响应：立即返回空的Claude响应
+		r.c.Header("Content-Type", "application/json")
+		emptyResponse := &claude.ClaudeResponse{
+			Id:         fmt.Sprintf("msg_bg_%d", utils.GetTimestamp()),
+			Type:       "message",
+			Role:       "assistant",
+			Content:    []claude.ResContent{},
+			Model:      r.modelName,
+			StopReason: "end_turn",
+			Usage: claude.Usage{
+				InputTokens:  0,
+				OutputTokens: 0,
+			},
+		}
+
+		r.c.JSON(http.StatusOK, emptyResponse)
+	}
+
+	// 立即结束响应，不继续处理
+	return nil, true
 }
 
 // 工具调用状态管理
@@ -1017,8 +1136,11 @@ func (r *relayClaudeOnly) writeSSEEvent(eventType string, data interface{}, isCl
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
+
 		return
 	}
+
+	// 打印发送给客户端的SSE事件
 
 	_, err = fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, string(jsonData))
 	if err != nil {
@@ -1028,5 +1150,33 @@ func (r *relayClaudeOnly) writeSSEEvent(eventType string, data interface{}, isCl
 			strings.Contains(err.Error(), "write: connection reset by peer") {
 			*isClosed = true
 		}
+	}
+}
+
+// writeSSEEventRaw 直接发送原始JSON字符串，确保字段顺序正确
+func (r *relayClaudeOnly) writeSSEEventRaw(eventType, jsonData string, isClosed *bool) {
+	if *isClosed {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			*isClosed = true
+		}
+	}()
+
+	_, err := fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, jsonData)
+	if err != nil {
+		// 检测常见的连接关闭错误
+		if strings.Contains(err.Error(), "broken pipe") ||
+			strings.Contains(err.Error(), "connection reset") ||
+			strings.Contains(err.Error(), "write: connection reset by peer") {
+			*isClosed = true
+		}
+	}
+
+	// 立即flush数据，确保客户端能及时收到
+	if flusher, ok := r.c.Writer.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }
