@@ -624,7 +624,21 @@ func (r *relayClaudeOnly) convertOpenAIStreamToClaude(stream requester.StreamRea
 	contentIndex := 0
 	processedInThisChunk := make(map[int]bool)
 
-	// message_start事件将在处理第一个chunk时发送
+	// 保存最后的 usage 信息，用于 EOF 时补发
+	var lastUsage map[string]interface{}
+
+	// 安全关闭函数，确保流正确结束
+	safeClose := func() {
+		if !isClosed {
+			isClosed = true
+			// 清理工具调用状态
+			toolCallStates = make(map[int]map[string]interface{})
+			toolCallToContentIndex = make(map[int]int)
+		}
+	}
+
+	// 确保在函数结束时关闭流
+	defer safeClose()
 
 	var firstResponseTime int64
 	isFirst := true
@@ -636,7 +650,7 @@ streamLoop:
 		select {
 		case rawLine := <-dataChan:
 			if isClosed {
-				continue
+				break streamLoop
 			}
 
 			totalChunks++
@@ -679,6 +693,11 @@ streamLoop:
 
 			// 重置每个chunk的处理状态
 			processedInThisChunk = make(map[int]bool)
+
+			// 保存 usage 信息
+			if usage, usageExists := openaiChunk["usage"].(map[string]interface{}); usageExists {
+				lastUsage = usage
+			}
 
 			// 处理choices
 			if choices, exists := openaiChunk["choices"].([]interface{}); exists && len(choices) > 0 {
@@ -775,9 +794,9 @@ streamLoop:
 
 					hasFinished = true
 
-					// 警告：如果没有内容
+					// 检查是否有内容（用于调试，但不记录日志）
 					if contentChunks == 0 && toolCallChunks == 0 {
-						logger.SysLog("Warning: No content in the stream response!")
+						// 无内容的流响应，但这可能是正常情况（如背景任务）
 					}
 
 					// 发送content_block_stop事件 - 复刻JavaScript逻辑（格式与demo一致）
@@ -830,33 +849,53 @@ streamLoop:
 						messageStopJSON := `{"type":"message_stop"}`
 						r.writeSSEEventRaw("message_stop", messageStopJSON, &isClosed)
 					}
-					isClosed = true
 
-					// 清理工具调用状态
-					toolCallStates = make(map[int]map[string]interface{})
-					toolCallToContentIndex = make(map[int]int)
-
-					break
+					// 确保流正确结束
+					safeClose()
+					break streamLoop
 				}
 			}
 		case err := <-errChan:
 			if err != nil {
 				if err.Error() == "EOF" {
-					// 正常结束
-					isClosed = true
+					// 正常结束 - 确保发送完整的结束序列
+					if !hasFinished && !isClosed {
+						// 如果还没有发送结束事件，补发
+						if hasTextContentStarted || toolCallChunks > 0 {
+							contentBlockStopJSON := fmt.Sprintf(`{"type":"content_block_stop","index":%d}`, contentIndex)
+							r.writeSSEEventRaw("content_block_stop", contentBlockStopJSON, &isClosed)
+						}
 
-					// 清理工具调用状态
-					toolCallStates = make(map[int]map[string]interface{})
-					toolCallToContentIndex = make(map[int]int)
+						// 使用保存的 usage 信息，如果没有则使用默认值
+						var messageDeltaJSON string
+						if lastUsage != nil {
+							inputTokens := 0
+							outputTokens := 0
+							if promptTokens, ok := lastUsage["prompt_tokens"]; ok {
+								if tokens, ok := promptTokens.(float64); ok {
+									inputTokens = int(tokens)
+								}
+							}
+							if completionTokens, ok := lastUsage["completion_tokens"]; ok {
+								if tokens, ok := completionTokens.(float64); ok {
+									outputTokens = int(tokens)
+								}
+							}
+							messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, inputTokens, outputTokens)
+						} else {
+							messageDeltaJSON = `{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":0,"output_tokens":0}}`
+						}
+						r.writeSSEEventRaw("message_delta", messageDeltaJSON, &isClosed)
 
+						messageStopJSON := `{"type":"message_stop"}`
+						r.writeSSEEventRaw("message_stop", messageStopJSON, &isClosed)
+					}
+
+					safeClose()
 					break streamLoop
 				}
 				logger.SysError("Stream read error: " + err.Error())
-				isClosed = true
-
-				// 清理工具调用状态
-				toolCallStates = make(map[int]map[string]interface{})
-				toolCallToContentIndex = make(map[int]int)
+				safeClose()
 			}
 			break streamLoop
 		}
@@ -1134,22 +1173,37 @@ func (r *relayClaudeOnly) writeSSEEvent(eventType string, data interface{}, isCl
 		}
 	}()
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-
+	// 检查客户端连接状态
+	select {
+	case <-r.c.Request.Context().Done():
+		// 客户端已断开连接
+		*isClosed = true
 		return
+	default:
+		// 连接正常，继续处理
 	}
 
-	// 打印发送给客户端的SSE事件
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		*isClosed = true
+		return
+	}
 
 	_, err = fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, string(jsonData))
 	if err != nil {
 		// 检测常见的连接关闭错误
 		if strings.Contains(err.Error(), "broken pipe") ||
 			strings.Contains(err.Error(), "connection reset") ||
-			strings.Contains(err.Error(), "write: connection reset by peer") {
+			strings.Contains(err.Error(), "write: connection reset by peer") ||
+			strings.Contains(err.Error(), "client disconnected") {
 			*isClosed = true
 		}
+		return
+	}
+
+	// 立即flush数据，确保客户端能及时收到
+	if flusher, ok := r.c.Writer.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }
 
@@ -1165,14 +1219,26 @@ func (r *relayClaudeOnly) writeSSEEventRaw(eventType, jsonData string, isClosed 
 		}
 	}()
 
+	// 检查客户端连接状态
+	select {
+	case <-r.c.Request.Context().Done():
+		// 客户端已断开连接
+		*isClosed = true
+		return
+	default:
+		// 连接正常，继续处理
+	}
+
 	_, err := fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, jsonData)
 	if err != nil {
 		// 检测常见的连接关闭错误
 		if strings.Contains(err.Error(), "broken pipe") ||
 			strings.Contains(err.Error(), "connection reset") ||
-			strings.Contains(err.Error(), "write: connection reset by peer") {
+			strings.Contains(err.Error(), "write: connection reset by peer") ||
+			strings.Contains(err.Error(), "client disconnected") {
 			*isClosed = true
 		}
+		return
 	}
 
 	// 立即flush数据，确保客户端能及时收到
