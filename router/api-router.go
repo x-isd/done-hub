@@ -12,8 +12,12 @@ import (
 
 func SetApiRouter(router *gin.Engine) {
 	apiRouter := router.Group("/api")
-	apiRouter.GET("/metrics", middleware.MetricsWithBasicAuth(), gin.WrapH(promhttp.Handler()))
+	// 先设置通用中间件
 	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	apiRouter.Use(middleware.NoCache()) // 确保所有API接口都不缓存
+
+	// metrics接口单独处理，不需要NoCache
+	apiRouter.GET("/metrics", middleware.MetricsWithBasicAuth(), gin.WrapH(promhttp.Handler()))
 
 	systemInfo := apiRouter.Group("/system_info")
 	systemInfo.Use(middleware.RootAuth())
