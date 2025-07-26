@@ -130,12 +130,15 @@ func initHttpServer() {
 
 	store := cookie.NewStore([]byte(config.SessionSecret))
 
+	// 检测是否在 HTTPS 环境下运行
+	isHTTPS := viper.GetBool("https") || viper.GetString("trusted_header") == "CF-Connecting-IP"
+
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   2592000, // 30 days
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   isHTTPS,              // 在 HTTPS 环境下启用 Secure
+		SameSite: http.SameSiteLaxMode, // 改为 Lax 模式，兼容 CDN 环境
 	})
 
 	server.Use(sessions.Sessions("session", store))
