@@ -137,8 +137,8 @@ func initHttpServer() {
 		Path:     "/",
 		MaxAge:   2592000, // 30 days
 		HttpOnly: true,
-		Secure:   isHTTPS,              // 在 HTTPS 环境下启用 Secure
-		SameSite: http.SameSiteLaxMode, // 改为 Lax 模式，兼容 CDN 环境
+		Secure:   isHTTPS,                 // 在 HTTPS 环境下启用 Secure
+		SameSite: http.SameSiteStrictMode, // 改为 Lax 模式，兼容 CDN 环境
 	})
 
 	server.Use(sessions.Sessions("session", store))
