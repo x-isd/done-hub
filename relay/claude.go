@@ -312,7 +312,11 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 		Temperature: r.claudeRequest.Temperature,
 		TopP:        r.claudeRequest.TopP,
 		Stream:      r.claudeRequest.Stream,
-		Stop:        r.claudeRequest.StopSequences,
+	}
+
+	// 处理 Stop 参数，过滤掉 null 值
+	if r.claudeRequest.StopSequences != nil {
+		openaiRequest.Stop = r.claudeRequest.StopSequences
 	}
 
 	// 处理系统消息
