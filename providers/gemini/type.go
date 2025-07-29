@@ -555,6 +555,12 @@ func OpenAIToGeminiChatContent(openaiContents []types.ChatCompletionMessage) ([]
 				}
 			}
 
+			// 安全检查：如果 Name 仍然为 nil，跳过这个工具结果
+			if openaiContent.Name == nil {
+				// 跳过没有名称的工具结果消息
+				continue
+			}
+
 			functionPart := GeminiPart{
 				FunctionResponse: &GeminiFunctionResponse{
 					Name: *openaiContent.Name,
