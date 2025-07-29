@@ -25,21 +25,27 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 
 ## 目前与原版(最新镜像)的区别
 
-- 支持 /gemini 原生生图请求的额外参数透传
-- 支持 /gemini 原生对话请求的思考参数
-- 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 支持批量删除渠道
+- 支持渠道额外参数中删除指定参数
+- 支持渠道 BaseURL 添加模型变量替换
+- 支持 /gemini 原生生图请求的额外参数透传
+- 支持自定义渠道使用 Claude 原生路由 - 接入ClaudeCode
+- 支持 VertexAI 渠道使用 Claude 原生路由 - 接入ClaudeCode
 - 支持 VertexAI 渠道下可配置多个 Region , 每次请求随机选取 Region
-- 新增分析功能中的 RPM / TPM / CPM 展示
-- 新增分析功能-充值统计中的时间周期条件
+- 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 新增批量添加渠道的用户分组功能
-- 新增邀请充值返利功能（可选类型: 固定/百分比）
+- 新增分析功能-充值统计中的时间周期条件
+- 新增分析功能中的 RPM / TPM / CPM 展示
 - 新增空回复是否计费配置 （默认:计费）
+- 新增邀请充值返利功能（可选类型: 固定/百分比）
 - 修复若干用户额度缓存与DB数据不一致的导致计费异常的 bug
 - 修复邀请记录字段缺失的 bug
+- 修复多实例部署下的支付回调bug
+- 修复时区硬编码影响统计数据的bug
+- 修复API路由下允许cf缓存引起的的bug
 - 修复系统初始化http环境下登录异常的 bug
-- 修复时区硬编码影响统计数据的 bug
 - 删除日志功能中无意义的原始价格相关样式
+- 优化若干UI交互
 - ...
 
 ## 部署
