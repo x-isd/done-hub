@@ -2,6 +2,7 @@ package transformer
 
 import (
 	"bufio"
+	"done-hub/common"
 	"done-hub/providers/claude"
 	"encoding/json"
 	"fmt"
@@ -180,9 +181,35 @@ func (t *ClaudeTransformer) TransformResponseIn(response *UnifiedChatResponse) (
 
 	// 处理 usage 信息
 	if response.Usage != nil {
+		finalOutputTokens := response.Usage.CompletionTokens
+
+		// 如果 CompletionTokens 为 0，尝试从内容计算
+		if finalOutputTokens == 0 {
+			var textContent strings.Builder
+			var toolCallTokens int
+
+			// 计算文本内容 tokens
+			for _, c := range content {
+				if c.Type == "text" && c.Text != "" {
+					textContent.WriteString(c.Text)
+				} else if c.Type == "tool_use" {
+					// 计算工具调用 tokens
+					toolCallText := fmt.Sprintf("tool_use:%s:%v", c.Name, c.Input)
+					toolCallTokens += common.CountTokenText(toolCallText, response.Model)
+				}
+			}
+
+			// 累加工具调用和文本内容的 tokens
+			finalOutputTokens = toolCallTokens
+			if textContent.Len() > 0 {
+				textTokens := common.CountTokenText(textContent.String(), response.Model)
+				finalOutputTokens += textTokens
+			}
+		}
+
 		claudeResponse.Usage = claude.Usage{
 			InputTokens:  response.Usage.PromptTokens,
-			OutputTokens: response.Usage.CompletionTokens,
+			OutputTokens: finalOutputTokens,
 		}
 	}
 
@@ -219,6 +246,10 @@ func (t *ClaudeTransformer) TransformStreamResponseIn(response *http.Response) (
 		toolCalls := make(map[int]*ToolCallState)
 		toolCallIndexToContentBlockIndex := make(map[int]int)
 		hasFinished := false // 流是否已结束
+
+		// 累积工具调用的 token 数（用于当上游不提供 usage 时的计算）
+		toolCallTokens := 0
+		var textBuilder strings.Builder
 
 		// 发送 message_start 事件
 		if !hasStarted {
@@ -269,6 +300,9 @@ func (t *ClaudeTransformer) TransformStreamResponseIn(response *http.Response) (
 			// 处理文本内容
 			if choice.Delta != nil && choice.Delta.Content != nil {
 				if contentStr, ok := choice.Delta.Content.(string); ok && contentStr != "" {
+					// 累积文本内容用于 token 计算
+					textBuilder.WriteString(contentStr)
+
 					if !hasTextContentStarted {
 						hasTextContentStarted = true
 						contentBlockStart := map[string]interface{}{
@@ -446,13 +480,19 @@ func (t *ClaudeTransformer) TransformStreamResponseIn(response *http.Response) (
 					t.writeSSEEvent(pw, "content_block_stop", contentBlockStop)
 				}
 
-				// 为所有工具调用发送 content_block_stop
+				// 为所有工具调用发送 content_block_stop 并计算 tokens
 				for _, toolCallState := range toolCalls {
 					contentBlockStop := map[string]interface{}{
 						"type":  "content_block_stop",
 						"index": toolCallState.ContentBlockIndex,
 					}
 					t.writeSSEEvent(pw, "content_block_stop", contentBlockStop)
+
+					// 计算工具调用的 token 数（在工具调用完成时）
+					if toolCallState.Name != "" && toolCallState.Arguments != "" {
+						toolCallText := fmt.Sprintf("tool_use:%s:%s", toolCallState.Name, toolCallState.Arguments)
+						toolCallTokens += common.CountTokenText(toolCallText, "gpt-3.5-turbo")
+					}
 				}
 
 				// 转换停止原因
@@ -483,10 +523,18 @@ func (t *ClaudeTransformer) TransformStreamResponseIn(response *http.Response) (
 						"output_tokens": chunk.Usage.CompletionTokens,
 					}
 				} else {
-					// 如果没有usage信息，提供默认值
+					// 如果没有usage信息，尝试使用累积的 tokens
+					estimatedOutputTokens := toolCallTokens
+
+					// 累加文本内容的 tokens
+					if textBuilder.Len() > 0 {
+						textTokens := common.CountTokenText(textBuilder.String(), "gpt-3.5-turbo")
+						estimatedOutputTokens += textTokens
+					}
+
 					messageDelta["usage"] = map[string]interface{}{
 						"input_tokens":  0,
-						"output_tokens": 0,
+						"output_tokens": estimatedOutputTokens,
 					}
 				}
 

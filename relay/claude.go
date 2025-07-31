@@ -675,16 +675,31 @@ func (r *relayClaudeOnly) convertOpenAIResponseToClaude(openaiResponse *types.Ch
 	if openaiResponse.Usage != nil {
 		// 计算最终的输出 tokens
 		finalOutputTokens := openaiResponse.Usage.CompletionTokens
-		if finalOutputTokens == 0 && toolCallTokens > 0 {
-			// 如果 OpenAI 返回的 completion_tokens 为 0，但有工具调用，使用我们计算的 tokens
+
+		if finalOutputTokens == 0 {
+			// 如果 OpenAI 返回的 completion_tokens 为 0，计算工具调用和文本内容的 tokens
 			finalOutputTokens = toolCallTokens
-			logger.SysLog(fmt.Sprintf("[Claude Convert] 检测到纯工具调用，手动计算 tokens: %d", toolCallTokens))
+
+			// 累加文本内容的 tokens
+			if len(content) > 0 {
+				var textContent strings.Builder
+				for _, c := range content {
+					if c.Type == "text" && c.Text != "" {
+						textContent.WriteString(c.Text)
+					}
+				}
+				if textContent.Len() > 0 {
+					textTokens := common.CountTokenText(textContent.String(), openaiResponse.Model)
+					finalOutputTokens += textTokens
+				}
+			}
 		}
 
 		claudeResponse.Usage = claude.Usage{
 			InputTokens:  openaiResponse.Usage.PromptTokens,
 			OutputTokens: finalOutputTokens,
 		}
+
 	}
 
 	return claudeResponse
@@ -718,6 +733,9 @@ func (r *relayClaudeOnly) convertOpenAIStreamToClaude(stream requester.StreamRea
 
 	// 保存最后的 usage 信息，用于 EOF 时补发
 	var lastUsage map[string]interface{}
+
+	// 累积工具调用的 token 数（用于当上游不提供 usage 时的计算）
+	toolCallStatesForTokens := make(map[int]map[string]string) // 用于记录工具调用状态以便最后计算 tokens
 
 	// 安全关闭函数，确保流正确结束
 	safeClose := func() {
@@ -853,6 +871,10 @@ streamLoop:
 							// 只有当内容不为空时才处理
 							if content != "" {
 								contentChunks++
+
+								// 累积文本内容到 TextBuilder 用于 token 计算
+								r.provider.GetUsage().TextBuilder.WriteString(content)
+
 								if !hasTextContentStarted && !hasFinished {
 									// 发送content_block_start事件（格式与demo一致）
 									contentBlockStartJSON := fmt.Sprintf(`{"type":"content_block_start","index":%d,"content_block":{"type":"text","text":""}}`, contentIndex)
@@ -874,6 +896,37 @@ streamLoop:
 						for _, toolCall := range toolCalls {
 							if toolCallMap, ok := toolCall.(map[string]interface{}); ok {
 								r.processToolCallDelta(toolCallMap, &contentIndex, flusher, processedInThisChunk, hasTextContentStarted, &isClosed, &hasFinished)
+
+								// 累积工具调用信息（在流结束时统一计算 tokens）
+								if function, funcExists := toolCallMap["function"].(map[string]interface{}); funcExists {
+									toolCallIndex := 0 // 需要从 toolCallMap 中获取 index
+									if idx, idxExists := toolCallMap["index"]; idxExists {
+										if idxFloat, ok := idx.(float64); ok {
+											toolCallIndex = int(idxFloat)
+										} else if idxInt, ok := idx.(int); ok {
+											toolCallIndex = idxInt
+										}
+									}
+
+									// 确保索引不为负数
+									if toolCallIndex < 0 {
+										toolCallIndex = 0
+									}
+
+									if toolCallStatesForTokens[toolCallIndex] == nil {
+										toolCallStatesForTokens[toolCallIndex] = map[string]string{
+											"name":      "",
+											"arguments": "",
+										}
+									}
+
+									if name, nameExists := function["name"].(string); nameExists {
+										toolCallStatesForTokens[toolCallIndex]["name"] = name
+									}
+									if args, argsExists := function["arguments"].(string); argsExists {
+										toolCallStatesForTokens[toolCallIndex]["arguments"] += args
+									}
+								}
 							}
 						}
 					}
@@ -926,8 +979,33 @@ streamLoop:
 						}
 						messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, claudeStopReason, inputTokens, outputTokens)
 					} else {
-						// 如果没有usage信息，使用默认值（与demo一致）
-						messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":0,"output_tokens":0}}`, claudeStopReason)
+						// 如果没有usage信息，计算工具调用和文本内容的 tokens
+						currentUsage := r.provider.GetUsage()
+
+						// 计算工具调用 tokens（在流结束时统一计算）
+						estimatedOutputTokens := 0
+						for _, toolCallState := range toolCallStatesForTokens {
+							if name, nameExists := toolCallState["name"]; nameExists {
+								args := toolCallState["arguments"]
+								if name != "" {
+									toolCallText := fmt.Sprintf("tool_use:%s:%s", name, args)
+									tokens := common.CountTokenText(toolCallText, r.modelName)
+									estimatedOutputTokens += tokens
+								}
+							}
+						}
+
+						// 累加文本内容的 tokens
+						if currentUsage.TextBuilder.Len() > 0 {
+							textTokens := common.CountTokenText(currentUsage.TextBuilder.String(), r.modelName)
+							estimatedOutputTokens += textTokens
+						}
+
+						// 更新 Provider 的 Usage
+						currentUsage.CompletionTokens = estimatedOutputTokens
+						currentUsage.TotalTokens = currentUsage.PromptTokens + estimatedOutputTokens
+
+						messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, claudeStopReason, currentUsage.PromptTokens, estimatedOutputTokens)
 					}
 
 					if !isClosed {
@@ -973,7 +1051,31 @@ streamLoop:
 							}
 							messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, inputTokens, outputTokens)
 						} else {
-							messageDeltaJSON = `{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":0,"output_tokens":0}}`
+							currentUsage := r.provider.GetUsage()
+
+							// 计算工具调用 tokens（在流结束时统一计算）
+							estimatedOutputTokens := 0
+							for _, toolCallState := range toolCallStatesForTokens {
+								if name, nameExists := toolCallState["name"]; nameExists {
+									args := toolCallState["arguments"]
+									if name != "" {
+										toolCallText := fmt.Sprintf("tool_use:%s:%s", name, args)
+										estimatedOutputTokens += common.CountTokenText(toolCallText, r.modelName)
+									}
+								}
+							}
+
+							// 累加文本内容的 tokens
+							if currentUsage.TextBuilder.Len() > 0 {
+								textTokens := common.CountTokenText(currentUsage.TextBuilder.String(), r.modelName)
+								estimatedOutputTokens += textTokens
+							}
+
+							// 更新 Provider 的 Usage
+							currentUsage.CompletionTokens = estimatedOutputTokens
+							currentUsage.TotalTokens = currentUsage.PromptTokens + estimatedOutputTokens
+
+							messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, currentUsage.PromptTokens, estimatedOutputTokens)
 						}
 						r.writeSSEEventRaw("message_delta", messageDeltaJSON, &isClosed)
 
