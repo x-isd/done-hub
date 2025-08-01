@@ -148,7 +148,7 @@ export default function LogTableRow({ item, userIsAdmin, userGroup, columnVisibi
           <TableCell
             sx={{ p: '10px 8px' }}>{viewInput(item, t, totalInputTokens, totalOutputTokens, show, tokenDetails)}</TableCell>
         )}
-        {columnVisibility.completion && <TableCell sx={{ p: '10px 8px' }}>{item.completion_tokens || ''}</TableCell>}
+        {columnVisibility.completion && <TableCell sx={{ p: '10px 8px' }}>{item.completion_tokens !== undefined && item.completion_tokens !== null ? item.completion_tokens : ''}</TableCell>}
         {columnVisibility.quota && (
           <TableCell sx={{ p: '10px 8px' }}>
             {item.type === 2 ? (
@@ -232,7 +232,7 @@ const MetadataTypography = styled(Typography)(({ theme }) => ({
 function viewInput(item, t, totalInputTokens, totalOutputTokens, show, tokenDetails) {
   const { prompt_tokens } = item
 
-  if (!prompt_tokens) return ''
+  if (prompt_tokens === undefined || prompt_tokens === null) return ''
   if (!show) return prompt_tokens
 
   const tooltipContent = tokenDetails.map(({ key, label, tokens, value, rate, labelParams }) => (
@@ -273,7 +273,7 @@ const TOKEN_RATIOS = {
 function calculateTokens(item) {
   const { prompt_tokens, completion_tokens, metadata } = item
 
-  if (!prompt_tokens || !metadata) {
+  if ((prompt_tokens === undefined || prompt_tokens === null) || !metadata) {
     return {
       totalInputTokens: prompt_tokens || 0,
       totalOutputTokens: completion_tokens || 0,

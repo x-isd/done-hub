@@ -135,7 +135,7 @@ func CleanGeminiRequestData(rawData []byte, isVertexAI bool) ([]byte, error) {
 		return nil, err
 	}
 
-	// 清理 contents 中的 function_call 字段中的 id
+	// 清理 contents 中的 function_call 和 function_response 字段中的 id
 	if contents, ok := data["contents"].([]interface{}); ok {
 		for _, content := range contents {
 			if contentMap, ok := content.(map[string]interface{}); ok {
@@ -147,6 +147,14 @@ func CleanGeminiRequestData(rawData []byte, isVertexAI bool) ([]byte, error) {
 							for _, fieldName := range fieldNames {
 								if functionCall, ok := partMap[fieldName].(map[string]interface{}); ok {
 									delete(functionCall, "id")
+								}
+							}
+
+							// 检查所有可能的 function_response 字段名：functionResponse, function_response
+							responseFieldNames := []string{"functionResponse", "function_response"}
+							for _, fieldName := range responseFieldNames {
+								if functionResponse, ok := partMap[fieldName].(map[string]interface{}); ok {
+									delete(functionResponse, "id")
 								}
 							}
 						}
@@ -527,9 +535,21 @@ func (h *GeminiStreamHandler) convertToOpenaiStream(geminiResponse *GeminiChatRe
 	}
 
 	h.Usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
-	h.Usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
+
+	// 计算 completion tokens，确保不为负数
+	completionTokens := geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
+	if completionTokens < 0 {
+		completionTokens = 0
+	}
+	h.Usage.CompletionTokens = completionTokens
 	h.Usage.CompletionTokensDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
-	h.Usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
+
+	// 如果 TotalTokenCount 为 0 但有 PromptTokenCount，则计算总数
+	totalTokens := geminiResponse.UsageMetadata.TotalTokenCount
+	if totalTokens == 0 && geminiResponse.UsageMetadata.PromptTokenCount > 0 {
+		totalTokens = geminiResponse.UsageMetadata.PromptTokenCount + completionTokens
+	}
+	h.Usage.TotalTokens = totalTokens
 }
 
 const tokenThreshold = 1000000
@@ -575,10 +595,26 @@ var modelAdjustRatios = map[string]int{
 // }
 
 func ConvertOpenAIUsage(geminiUsage *GeminiUsageMetadata) types.Usage {
+	if geminiUsage == nil {
+		return types.Usage{}
+	}
+
+	// 计算 completion tokens，确保不为负数
+	completionTokens := geminiUsage.CandidatesTokenCount + geminiUsage.ThoughtsTokenCount
+	if completionTokens < 0 {
+		completionTokens = 0
+	}
+
+	// 如果 TotalTokenCount 为 0 但有 PromptTokenCount，则计算总数
+	totalTokens := geminiUsage.TotalTokenCount
+	if totalTokens == 0 && geminiUsage.PromptTokenCount > 0 {
+		totalTokens = geminiUsage.PromptTokenCount + completionTokens
+	}
+
 	return types.Usage{
 		PromptTokens:     geminiUsage.PromptTokenCount,
-		CompletionTokens: geminiUsage.CandidatesTokenCount + geminiUsage.ThoughtsTokenCount,
-		TotalTokens:      geminiUsage.TotalTokenCount,
+		CompletionTokens: completionTokens,
+		TotalTokens:      totalTokens,
 
 		CompletionTokensDetails: types.CompletionTokensDetails{
 			ReasoningTokens: geminiUsage.ThoughtsTokenCount,
