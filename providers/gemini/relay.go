@@ -97,14 +97,15 @@ func (h *GeminiRelayStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan 
 		return
 	}
 
-	// 直接转发原始 Gemini 格式响应
-	dataChan <- rawStr
-
-	// 处理使用量统计
-	if geminiResponse.UsageMetadata != nil {
-		h.Usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
-		h.Usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
-		h.Usage.CompletionTokensDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
-		h.Usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
+	if geminiResponse.UsageMetadata == nil {
+		dataChan <- rawStr
+		return
 	}
+
+	h.Usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
+	h.Usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
+	h.Usage.CompletionTokensDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
+	h.Usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
+
+	dataChan <- rawStr
 }

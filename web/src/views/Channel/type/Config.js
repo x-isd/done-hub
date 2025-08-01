@@ -42,7 +42,7 @@ const defaultConfig = {
   prompt: {
     type: '请选择渠道类型',
     name: '请为渠道命名',
-    base_url: '可空，请输入中转API地址，例如通过cloudflare中转。支持使用{model}变量，例如：https://api.example.com/v1/{model}/chat',
+    base_url: '可空，请输入中转API地址，例如通过cloudflare中转',
     key: '请输入渠道对应的鉴权密钥',
     other: '',
     proxy:
@@ -53,7 +53,7 @@ const defaultConfig = {
     model_mapping: '模型映射关系：例如用户请求A模型，实际转发给渠道的模型为B。在B模型加前缀+，表示使用传入模型计费，例如：+gpt-3.5-turbo',
     model_headers: '自定义模型请求头，例如：{"key": "value"}',
     custom_parameter:
-      '额外参数，添加到请求体中，支持嵌套JSON结构，例如：{"temperature": 0.7, "nested": {"key": "value"}}。如果参数中存在"overwrite":true，系统则会用额外参数覆盖现有参数，如果"overwrite"不存在或者false系统则只会增加相关参数。如果参数中存在"per_model":true，系统会进一步根据模型名进行参数覆盖，例如：{"per_model":true,"gpt-3.5-turbo":{"temperature": 0.7},"gpt-4":{"temperature": 0.5}}。如果参数中存在"remove_params"，系统会删除指定的参数，例如：{"remove_params": ["presence_penalty", "frequency_penalty"]}',
+      '额外参数，添加到请求体中，支持嵌套JSON结构，例如：{"temperature": 0.7, "nested": {"key": "value"}}。如果参数中存在"overwrite":true，系统则会用额外参数覆盖现有参数，如果"overwrite"不存在或者false系统则只会增加相关参数。如果参数中存在"per_model":true，系统会进一步根据模型名进行参数覆盖，例如：{"per_model":true,"gpt-3.5-turbo":{"temperature": 0.7},"gpt-4":{"temperature": 0.5}}',
     groups: '请选择该渠道所支持的用户组',
     only_chat: '如果选择了仅支持聊天，那么遇到有函数调用的请求会跳过该渠道',
     provider_models_list: '必须填写所有数据后才能获取模型列表',
@@ -89,6 +89,17 @@ const typeConfig = {
     prompt: {
       base_url: '请填写AZURE_OPENAI_ENDPOINT',
       other: '请输入默认API版本，例如：2024-05-01-preview'
+    }
+  },
+  55: {
+    inputLabel: {
+      base_url: 'AZURE_OPENAI_ENDPOINT',
+      other: '默认 API 版本',
+      provider_models_list: '从Azure获取已部署模型列表'
+    },
+    prompt: {
+      base_url: '请填写AZURE_OPENAI_ENDPOINT',
+      other: '请输入默认API版本，例如：preview OR latest'
     }
   },
   11: {
@@ -521,6 +532,16 @@ const typeConfig = {
       key: '官方密钥格式： accessKey|secretKey'
     },
     modelGroup: 'Kling'
+  },
+  54: {
+    inputLabel: {
+      base_url: 'Azure Databricks Endpoint',
+      key: 'DATABRICKS_TOKEN'
+    },
+    prompt: {
+      base_url: '请填写Azure Databricks Endpoint',
+      key: '请输入DATABRICKS_TOKEN'
+    }
   },
   20: {
     inputLabel: {

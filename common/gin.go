@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"done-hub/common/config"
 	"done-hub/common/logger"
 	"done-hub/types"
 	"fmt"
@@ -21,6 +22,8 @@ func UnmarshalBodyReusable(c *gin.Context, v any) error {
 	if err != nil {
 		return err
 	}
+	c.Set(config.GinRequestBodyKey, requestBody)
+
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 	err = c.ShouldBind(v)
 	if err != nil {
@@ -31,7 +34,7 @@ func UnmarshalBodyReusable(c *gin.Context, v any) error {
 		return err
 	}
 
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+	// c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 	return nil
 }
 

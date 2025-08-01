@@ -3,14 +3,12 @@ package relay
 import (
 	"done-hub/common"
 	"done-hub/common/config"
-	"done-hub/common/image"
 	"done-hub/common/requester"
 	"done-hub/providers/gemini"
 	"done-hub/safty"
 	"done-hub/types"
 	"encoding/json"
 	"errors"
-	"math"
 	"net/http"
 	"strings"
 
@@ -65,7 +63,6 @@ func (r *relayGeminiOnly) setRequest() error {
 	if err := common.UnmarshalBodyReusable(r.c, r.geminiRequest); err != nil {
 		return err
 	}
-	r.geminiRequest.SetJsonRaw(r.c)
 	r.geminiRequest.Model = modelList[0]
 	r.geminiRequest.Stream = isStream
 	r.setOriginalModel(r.geminiRequest.Model)
@@ -188,19 +185,8 @@ func CountGeminiTokenMessages(request *gemini.GeminiChatRequest, preCostType int
 			}
 
 			if part.InlineData != nil {
-				if strings.HasPrefix(part.InlineData.MimeType, "image") {
-					if preCostType == config.PreCostNotImage {
-						continue
-					}
-					width, height, err := image.GetImageSizeFromBase64(part.InlineData.Data)
-					if err != nil {
-						return 0, err
-					}
-					tokenNum += int(math.Ceil((float64(width) * float64(height)) / 750))
-				} else {
-					// 其他类型的，暂时按200个token计算
-					tokenNum += 200
-				}
+				// 其他类型的，暂时按200个token计算
+				tokenNum += 200
 			}
 		}
 	}
