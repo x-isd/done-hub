@@ -8,6 +8,7 @@ import (
 	"done-hub/common/requester"
 	"done-hub/common/utils"
 	"done-hub/providers/claude"
+	"done-hub/providers/gemini"
 	"done-hub/providers/openai"
 	"done-hub/providers/vertexai"
 	"done-hub/relay/transformer"
@@ -24,7 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var AllowChannelType = []int{config.ChannelTypeAnthropic, config.ChannelTypeVertexAI, config.ChannelTypeBedrock, config.ChannelTypeCustom}
+var AllowChannelType = []int{config.ChannelTypeAnthropic, config.ChannelTypeVertexAI, config.ChannelTypeBedrock, config.ChannelTypeCustom, config.ChannelTypeGemini}
 
 type relayClaudeOnly struct {
 	relayBase
@@ -88,6 +89,11 @@ func (r *relayClaudeOnly) send() (err *types.OpenAIErrorWithStatusCode, done boo
 	if channelType == config.ChannelTypeVertexAI &&
 		(strings.Contains(strings.ToLower(r.claudeRequest.Model), "gemini") || strings.Contains(strings.ToLower(r.claudeRequest.Model), "claude-3-5-haiku-20241022")) {
 		return r.sendVertexAIGeminiWithClaudeFormat()
+	}
+
+	// 检查是否为 Gemini 渠道，如果是则使用 Gemini->Claude 转换逻辑
+	if channelType == config.ChannelTypeGemini {
+		return r.sendGeminiWithClaudeFormat()
 	}
 
 	chatProvider, ok := r.provider.(claude.ClaudeChatInterface)
@@ -1393,10 +1399,11 @@ func (r *relayClaudeOnly) sendVertexAIGeminiWithClaudeFormat() (err *types.OpenA
 	transformManager := transformer.CreateClaudeToVertexGeminiManager()
 
 	// 1. 使用转换管理器处理请求转换（暂时不使用，保持兼容性）
-	_, transformErr := transformManager.ProcessRequest(r.claudeRequest)
-	if transformErr != nil {
-		return common.ErrorWrapper(transformErr, "request_transform_failed", http.StatusInternalServerError), true
-	}
+	// 注释掉：请求转换未实际使用，只是做错误检查但丢弃返回值
+	// _, transformErr := transformManager.ProcessRequest(r.claudeRequest)
+	// if transformErr != nil {
+	// 	return common.ErrorWrapper(transformErr, "request_transform_failed", http.StatusInternalServerError), true
+	// }
 
 	// 内容审查
 	if config.EnableSafe {
@@ -1608,6 +1615,82 @@ func (r *relayClaudeOnly) writeStreamResponse(response *http.Response) {
 	// 直接复制响应体
 	defer response.Body.Close()
 	io.Copy(r.c.Writer, response.Body)
+}
+
+// sendGeminiWithClaudeFormat handles Gemini channel Claude format requests
+// using transformer architecture: Claude format -> OpenAI format -> Gemini API -> OpenAI response -> Claude format
+func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWithStatusCode, done bool) {
+
+	// 将Claude请求转换为OpenAI格式
+	openaiRequest, err := r.convertClaudeToOpenAI()
+	if err != nil {
+		return err, true
+	}
+
+	// 内容审查
+	if config.EnableSafe {
+		for _, message := range r.claudeRequest.Messages {
+			if message.Content != nil {
+				CheckResult, _ := safty.CheckContent(message.Content)
+				if !CheckResult.IsSafe {
+					err = common.StringErrorWrapperLocal(CheckResult.Reason, CheckResult.Code, http.StatusBadRequest)
+					done = true
+					return
+				}
+			}
+		}
+	}
+
+	openaiRequest.Model = r.modelName
+
+	// 获取 Gemini provider
+	geminiProvider, ok := r.provider.(*gemini.GeminiProvider)
+	if !ok {
+		err = common.StringErrorWrapperLocal("provider is not Gemini provider", "channel_error", http.StatusServiceUnavailable)
+		done = true
+		return
+	}
+
+	if r.claudeRequest.Stream {
+		// 处理流式响应
+		var stream requester.StreamReaderInterface[string]
+		stream, err = geminiProvider.CreateChatCompletionStream(openaiRequest)
+		if err != nil {
+			return err, true
+		}
+
+		if r.heartbeat != nil {
+			r.heartbeat.Stop()
+		}
+
+		// 转换OpenAI流式响应为Claude格式
+		firstResponseTime := r.convertOpenAIStreamToClaude(stream)
+		r.SetFirstResponseTime(time.Unix(firstResponseTime, 0))
+	} else {
+		// 处理非流式响应
+		var openaiResponse *types.ChatCompletionResponse
+		openaiResponse, err = geminiProvider.CreateChatCompletion(openaiRequest)
+		if err != nil {
+			return err, true
+		}
+
+		if r.heartbeat != nil {
+			r.heartbeat.Stop()
+		}
+
+		// 转换OpenAI响应为Claude格式
+		claudeResponse := r.convertOpenAIResponseToClaude(openaiResponse)
+		openErr := responseJsonClient(r.c, claudeResponse)
+
+		if openErr != nil {
+			// 对于响应发送错误（如客户端断开连接），不应该触发重试
+			// 这种错误是客户端问题，不是服务端问题
+
+			// 不设置 err，避免触发重试机制
+		}
+	}
+
+	return err, false
 }
 
 // 注意：convertVertexAIStreamToClaude 方法已被移除
