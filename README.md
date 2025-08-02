@@ -31,6 +31,7 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - 支持 /gemini 原生生图请求的额外参数透传
 - 支持自定义渠道使用 Claude 原生路由 - 接入 ClaudeCode
 - 支持 VertexAI 渠道使用 Claude 原生路由 - 接入 ClaudeCode
+- 支持 VertexAI 渠道使用 Gemini 原生路由 - 接入 GeminiCli
 - 支持 VertexAI 渠道下可配置多个 Region , 每次请求随机选取 Region
 - 支持 gemini-2.0-flash-preview-image-generation 文生图/图生图，并兼容 OpenAI 对话接口
 - 新增批量添加渠道的用户分组功能
@@ -42,7 +43,7 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 - 修复邀请记录字段缺失的 bug
 - 修复多实例部署下的支付回调异常的 bug
 - 修复时区硬编码影响统计数据的 bug
-- 修复 API 路由下允许 cf 缓存引起越权的 bug
+- 修复 API 路由下允许 cdn 缓存引起越权的 bug
 - 修复系统初始化 http 环境下登录异常的 bug
 - 删除日志功能中无意义的原始价格相关样式
 - 优化若干 UI 交互
