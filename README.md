@@ -18,7 +18,7 @@ _本项目是基于[one-hub](https://github.com/MartialBE/one-api)二次开发�
 
 <sup><i>AI Wave 社群</i></sup> · <sup><i>(群内提供公益API、AI机器人)</i></sup>
 
-### [📚 原项目文档](https://one-hub-doc.vercel.app/)
+### [📚 点击查看原项目文档](https://one-hub-doc.vercel.app/)
 
 </div>
 
