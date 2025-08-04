@@ -45,6 +45,7 @@ func GeminiChatCompleteStrem(provider base.ProviderInterface, request *types.Cha
 	chatHandler := &gemini.GeminiStreamHandler{
 		Usage:   provider.GetUsage(),
 		Request: request,
+		Context: provider.GetContext(), // 传递 Context
 	}
 
 	return chatHandler.HandlerStream

@@ -66,6 +66,8 @@ func (r *relayGeminiOnly) setRequest() error {
 	r.geminiRequest.Model = modelList[0]
 	r.geminiRequest.Stream = isStream
 	r.setOriginalModel(r.geminiRequest.Model)
+	// 设置原始模型到 Context，用于统一请求响应模型功能
+	r.c.Set("original_model", r.geminiRequest.Model)
 
 	return nil
 }

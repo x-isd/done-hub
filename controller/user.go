@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -42,7 +43,7 @@ func Login(c *gin.Context) {
 	}
 	username := loginRequest.Username
 	password := loginRequest.Password
-	if username == "" || password == "" {
+	if strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "无效的参数",
 			"success": false,
@@ -154,6 +155,16 @@ func Register(c *gin.Context) {
 			})
 			return
 		}
+
+		// 严格验证邮箱格式
+		if err := common.ValidateEmailStrict(user.Email); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邮箱格式不符合要求",
+			})
+			return
+		}
+
 		if !common.VerifyCodeWithKey(user.Email, user.VerificationCode, common.EmailVerificationPurpose) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -411,6 +422,17 @@ func UpdateUser(c *gin.Context) {
 		})
 		return
 	}
+
+	// 如果更新了邮箱，进行严格验证
+	if updatedUser.Email != "" {
+		if err := common.ValidateEmailStrict(updatedUser.Email); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邮箱格式不符合要求",
+			})
+			return
+		}
+	}
 	originUser, err := model.GetUserById(updatedUser.Id, false)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -538,7 +560,7 @@ func DeleteUser(c *gin.Context) {
 func CreateUser(c *gin.Context) {
 	var user model.User
 	err := json.NewDecoder(c.Request.Body).Decode(&user)
-	if err != nil || user.Username == "" || user.Password == "" {
+	if err != nil || strings.TrimSpace(user.Username) == "" || strings.TrimSpace(user.Password) == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无效的参数",
@@ -552,6 +574,18 @@ func CreateUser(c *gin.Context) {
 		})
 		return
 	}
+
+	// 如果提供了邮箱，进行严格验证
+	if user.Email != "" {
+		if err := common.ValidateEmailStrict(user.Email); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邮箱格式不符合要求",
+			})
+			return
+		}
+	}
+
 	if user.DisplayName == "" {
 		user.DisplayName = user.Username
 	}
@@ -584,8 +618,8 @@ func CreateUser(c *gin.Context) {
 }
 
 type ManageRequest struct {
-	Username string `json:"username"`
-	Action   string `json:"action"`
+	UserId int    `json:"user_id"`
+	Action string `json:"action"`
 }
 
 // ManageUser Only admin user can do this
@@ -600,12 +634,17 @@ func ManageUser(c *gin.Context) {
 		})
 		return
 	}
-	user := model.User{
-		Username: req.Username,
+
+	if req.UserId == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "用户ID不能为空",
+		})
+		return
 	}
-	// Fill attributes
-	model.DB.Where(&user).First(&user)
-	if user.Id == 0 {
+
+	user, err := model.GetUserById(req.UserId, false)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "用户不存在",
@@ -702,6 +741,16 @@ func ManageUser(c *gin.Context) {
 func EmailBind(c *gin.Context) {
 	email := c.Query("email")
 	code := c.Query("code")
+
+	// 严格验证邮箱格式
+	if err := common.ValidateEmailStrict(email); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "邮箱格式不符合要求",
+		})
+		return
+	}
+
 	if !common.VerifyCodeWithKey(email, code, common.EmailVerificationPurpose) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,

@@ -865,7 +865,8 @@
           "label": "Retry Timeout (seconds)",
           "placeholder": "Retry Timeout (seconds)"
         },
-        "emptyResponseBilling": "Empty Response Billing"
+        "emptyResponseBilling": "Empty Response Billing",
+        "unifiedRequestResponseModel": "Unified Request Response Model"
       },
       "logSettings": {
         "clearLogs": "Clear Historical Logs",

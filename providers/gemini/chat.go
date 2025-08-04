@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -20,7 +22,8 @@ type GeminiStreamHandler struct {
 	Usage   *types.Usage
 	Request *types.ChatCompletionRequest
 
-	key string
+	key     string
+	Context *gin.Context // 添加 Context 用于获取响应模型名称
 }
 
 type OpenAIStreamHandler struct {
@@ -82,7 +85,8 @@ func (p *GeminiProvider) CreateChatCompletionStream(request *types.ChatCompletio
 		Usage:   p.Usage,
 		Request: request,
 
-		key: channel.Key,
+		key:     channel.Key,
+		Context: p.Context, // 传递 Context
 	}
 
 	return requester.RequestStream(p.Requester, resp, chatHandler.HandlerStream)
@@ -430,11 +434,14 @@ func removeAdditionalPropertiesWithDepth(schema interface{}, depth int) interfac
 }
 
 func ConvertToChatOpenai(provider base.ProviderInterface, response *GeminiChatResponse, request *types.ChatCompletionRequest) (openaiResponse *types.ChatCompletionResponse, errWithCode *types.OpenAIErrorWithStatusCode) {
+	// 获取响应中应该使用的模型名称
+	responseModel := provider.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		ID:      response.ResponseId,
 		Object:  "chat.completion",
 		Created: utils.GetTimestamp(),
-		Model:   request.Model,
+		Model:   responseModel,
 		Choices: make([]types.ChatCompletionChoice, 0, len(response.Candidates)),
 	}
 
@@ -483,11 +490,17 @@ func (h *GeminiStreamHandler) HandlerStream(rawLine *[]byte, dataChan chan strin
 }
 
 func (h *GeminiStreamHandler) convertToOpenaiStream(geminiResponse *GeminiChatResponse, dataChan chan string) {
+	// 获取响应中应该使用的模型名称
+	responseModel := h.Request.Model
+	if h.Context != nil {
+		responseModel = base.GetResponseModelNameFromContext(h.Context, h.Request.Model)
+	}
+
 	streamResponse := types.ChatCompletionStreamResponse{
 		ID:      geminiResponse.ResponseId,
 		Object:  "chat.completion.chunk",
 		Created: utils.GetTimestamp(),
-		Model:   h.Request.Model,
+		Model:   responseModel,
 		// Choices: choices,
 	}
 

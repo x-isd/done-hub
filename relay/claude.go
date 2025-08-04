@@ -50,6 +50,8 @@ func (r *relayClaudeOnly) setRequest() error {
 		return err
 	}
 	r.setOriginalModel(r.claudeRequest.Model)
+	// 设置原始模型到 Context，用于统一请求响应模型功能
+	r.c.Set("original_model", r.claudeRequest.Model)
 
 	// 检测背景任务（参考demo逻辑）
 	if r.isBackgroundTask() {
@@ -1692,6 +1694,3 @@ func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWi
 
 	return err, false
 }
-
-// 注意：convertVertexAIStreamToClaude 方法已被移除
-// 现在直接使用 convertOpenAIStreamToClaude 方法，因为 VertexAI 已经将 Gemini 格式转换为 OpenAI 格式

@@ -41,7 +41,14 @@ const BatchModal = ({ open, setOpen, groupOptions }) => {
     <Dialog open={open} onClose={() => setOpen(!open)} fullWidth maxWidth={'md'}>
       <DialogTitle>
         <Box>
-          <Tabs value={value} onChange={handleChange} aria-label="basic tabs channel">
+          <Tabs
+            value={value}
+            onChange={handleChange}
+            aria-label="basic tabs channel"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
             <Tab label={t('channel_index.batchAddUserGroup')} {...a11yProps(0)} />
             <Tab label={t('channel_index.batchDelete')} {...a11yProps(1)} />
             <Tab label={t('channel_index.AzureApiVersion')} {...a11yProps(2)} />

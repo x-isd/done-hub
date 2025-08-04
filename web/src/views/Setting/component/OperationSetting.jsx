@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState } from 'react';
-import SubCard from 'ui-component/cards/SubCard';
+import { useContext, useEffect, useState } from 'react'
+import SubCard from 'ui-component/cards/SubCard'
 import {
   Alert,
   Button,
@@ -14,24 +14,24 @@ import {
   Select,
   Stack,
   TextField
-} from '@mui/material';
-import { showError, showSuccess, verifyJSON } from 'utils/common';
-import { API } from 'utils/api';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import ChatLinksDataGrid from './ChatLinksDataGrid';
-import dayjs from 'dayjs';
-import { LoadStatusContext } from 'contexts/StatusContext';
-import { useTranslation } from 'react-i18next';
-import 'dayjs/locale/zh-cn';
-import { DateTimePicker } from '@mui/x-date-pickers';
-import { useSelector } from 'react-redux';
+} from '@mui/material'
+import { showError, showSuccess, verifyJSON } from 'utils/common'
+import { API } from 'utils/api'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
+import ChatLinksDataGrid from './ChatLinksDataGrid'
+import dayjs from 'dayjs'
+import { LoadStatusContext } from 'contexts/StatusContext'
+import { useTranslation } from 'react-i18next'
+import 'dayjs/locale/zh-cn'
+import { DateTimePicker } from '@mui/x-date-pickers'
+import { useSelector } from 'react-redux'
 
 const OperationSetting = () => {
-  const { t } = useTranslation();
-  const siteInfo = useSelector((state) => state.siteInfo);
-  let now = new Date();
+  const { t } = useTranslation()
+  const siteInfo = useSelector((state) => state.siteInfo)
+  let now = new Date()
   let [inputs, setInputs] = useState({
     QuotaForNewUser: 0,
     QuotaForInviter: 0,
@@ -51,6 +51,7 @@ const OperationSetting = () => {
     DisplayInCurrencyEnabled: 'false',
     ApproximateTokenEnabled: 'false',
     EmptyResponseBillingEnabled: 'true',
+    UnifiedRequestResponseModelEnabled: 'false',
     RetryTimes: 0,
     RetryTimeOut: 0,
     RetryCooldownSeconds: 0,
@@ -71,353 +72,356 @@ const OperationSetting = () => {
     ClaudeBudgetTokensPercentage: 0,
     ClaudeDefaultMaxTokens: '',
     GeminiOpenThink: ''
-  });
-  const [originInputs, setOriginInputs] = useState({});
-  let [loading, setLoading] = useState(false);
-  let [dataLoaded, setDataLoaded] = useState(false); // 添加数据加载状态
-  let [historyTimestamp, setHistoryTimestamp] = useState(now.getTime() / 1000 - 30 * 24 * 3600); // a month ago new Date().getTime() / 1000 + 3600
-  let [invoiceMonth, setInvoiceMonth] = useState(now.getTime()); // a month ago new Date().getTime() / 1000 + 3600
-  const loadStatus = useContext(LoadStatusContext);
-  const [safeToolsLoading, setSafeToolsLoading] = useState(true);
+  })
+  const [originInputs, setOriginInputs] = useState({})
+  let [loading, setLoading] = useState(false)
+  let [dataLoaded, setDataLoaded] = useState(false) // 添加数据加载状态
+  let [historyTimestamp, setHistoryTimestamp] = useState(now.getTime() / 1000 - 30 * 24 * 3600) // a month ago new Date().getTime() / 1000 + 3600
+  let [invoiceMonth, setInvoiceMonth] = useState(now.getTime()) // a month ago new Date().getTime() / 1000 + 3600
+  const loadStatus = useContext(LoadStatusContext)
+  const [safeToolsLoading, setSafeToolsLoading] = useState(true)
 
-  const getOptions = async () => {
+  const getOptions = async() => {
     try {
-      const res = await API.get('/api/option/');
-      const { success, message, data } = res.data;
+      const res = await API.get('/api/option/')
+      const { success, message, data } = res.data
       if (success) {
-        let newInputs = { ...inputs }; // 保留现有的 inputs 内容，包括 safeTools
+        let newInputs = { ...inputs } // 保留现有的 inputs 内容，包括 safeTools
         data.forEach((item) => {
           if (item.key === 'RechargeDiscount') {
-            item.value = JSON.stringify(JSON.parse(item.value), null, 2);
+            item.value = JSON.stringify(JSON.parse(item.value), null, 2)
           }
           if (item.key === 'SafeKeyWords' && typeof item.value === 'string' && item.value.startsWith('[')) {
             try {
-              item.value = JSON.parse(item.value);
+              item.value = JSON.parse(item.value)
             } catch (e) {
-              console.error('解析SafeKeyWords失败:', e);
+              console.error('解析SafeKeyWords失败:', e)
             }
           }
           // 处理布尔值配置项，统一转换为字符串
           if (item.key.endsWith('Enabled') && typeof item.value === 'boolean') {
-            item.value = item.value.toString();
+            item.value = item.value.toString()
           }
-          newInputs[item.key] = item.value;
-        });
+          newInputs[item.key] = item.value
+        })
         // 确保不会覆盖 safeTools
-        setInputs((prev) => ({ ...newInputs, safeTools: prev.safeTools }));
-        setOriginInputs(newInputs);
+        setInputs((prev) => ({ ...newInputs, safeTools: prev.safeTools }))
+        setOriginInputs(newInputs)
       } else {
-        showError(message);
+        showError(message)
       }
     } catch (error) {
-      return;
-    }
-  };
 
-  const getSafeTools = async () => {
-    setSafeToolsLoading(true);
+    }
+  }
+
+  const getSafeTools = async() => {
+    setSafeToolsLoading(true)
     try {
-      const res = await API.get('/api/option/safe_tools');
-      const { success, message, data } = res.data;
+      const res = await API.get('/api/option/safe_tools')
+      const { success, message, data } = res.data
       if (success) {
         setInputs((prev) => {
           const newInputs = {
             ...prev,
             safeTools: data
-          };
-          return newInputs;
-        });
+          }
+          return newInputs
+        })
       } else {
-        showError(message);
+        showError(message)
       }
     } catch (error) {
-      console.error('获取安全工具列表失败:', error);
-      showError('获取安全工具列表失败');
+      console.error('获取安全工具列表失败:', error)
+      showError('获取安全工具列表失败')
     } finally {
-      setSafeToolsLoading(false);
+      setSafeToolsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    const initData = async () => {
-      await getSafeTools();
-      await getOptions();
-      setDataLoaded(true); // 数据加载完成后设置状态
-    };
-    initData();
-  }, []);
+    const initData = async() => {
+      await getSafeTools()
+      await getOptions()
+      setDataLoaded(true) // 数据加载完成后设置状态
+    }
+    initData()
+  }, [])
 
-  const updateOption = async (key, value) => {
-    setLoading(true);
+  const updateOption = async(key, value) => {
+    setLoading(true)
     if (key.endsWith('Enabled')) {
-      value = inputs[key] === 'true' ? 'false' : 'true';
+      value = inputs[key] === 'true' ? 'false' : 'true'
     }
 
     try {
       const res = await API.put('/api/option/', {
         key,
         value
-      });
-      const { success, message } = res.data;
+      })
+      const { success, message } = res.data
       if (success) {
-        setInputs((inputs) => ({ ...inputs, [key]: value }));
-        getOptions();
-        await loadStatus();
+        setInputs((inputs) => ({ ...inputs, [key]: value }))
+        getOptions()
+        await loadStatus()
       } else {
-        showError(message);
+        showError(message)
       }
     } catch (error) {
-      return;
+      return
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
-  const handleInputChange = async (event) => {
-    let { name, value } = event.target;
+  const handleInputChange = async(event) => {
+    let { name, value } = event.target
 
     if (name.endsWith('Enabled')) {
-      await updateOption(name, value);
-      showSuccess('设置成功！');
+      await updateOption(name, value)
+      showSuccess('设置成功！')
     } else {
-      setInputs((inputs) => ({ ...inputs, [name]: value }));
+      setInputs((inputs) => ({ ...inputs, [name]: value }))
     }
-  };
+  }
 
   const handleTextFieldChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value } = event.target
     setInputs((prev) => ({
       ...prev,
       [name]: value
-    }));
-  };
+    }))
+  }
 
-  const submitConfig = async (group) => {
-    setLoading(true);
+  const submitConfig = async(group) => {
+    setLoading(true)
     try {
       switch (group) {
         case 'monitor':
           if (originInputs['ChannelDisableThreshold'] !== inputs.ChannelDisableThreshold) {
-            await updateOption('ChannelDisableThreshold', inputs.ChannelDisableThreshold);
+            await updateOption('ChannelDisableThreshold', inputs.ChannelDisableThreshold)
           }
           if (originInputs['QuotaRemindThreshold'] !== inputs.QuotaRemindThreshold) {
-            await updateOption('QuotaRemindThreshold', inputs.QuotaRemindThreshold);
+            await updateOption('QuotaRemindThreshold', inputs.QuotaRemindThreshold)
           }
-          break;
+          break
         case 'chatlinks':
           if (originInputs['ChatLinks'] !== inputs.ChatLinks) {
             if (!verifyJSON(inputs.ChatLinks)) {
-              showError('links不是合法的 JSON 字符串');
-              return;
+              showError('links不是合法的 JSON 字符串')
+              return
             }
-            await updateOption('ChatLinks', inputs.ChatLinks);
+            await updateOption('ChatLinks', inputs.ChatLinks)
           }
-          break;
+          break
         case 'quota':
           // 验证充值返利值的范围
           if (originInputs['InviterRewardValue'] !== inputs.InviterRewardValue) {
-            const rewardValue = parseInt(inputs.InviterRewardValue);
+            const rewardValue = parseInt(inputs.InviterRewardValue)
             if (isNaN(rewardValue)) {
-              showError('充值返利值必须是有效的数字');
-              return;
+              showError('充值返利值必须是有效的数字')
+              return
             }
 
             if (inputs.InviterRewardType === 'percentage') {
               // 百分比类型：值应在0-100之间
               if (rewardValue < 0 || rewardValue > 100) {
-                showError('当充值返利类型为百分比时，返利值应在0-100之间');
-                return;
+                showError('当充值返利类型为百分比时，返利值应在0-100之间')
+                return
               }
             } else {
               // 固定类型：值应>=0
               if (rewardValue < 0) {
-                showError('当充值返利类型为固定时，返利值应大于等于0');
-                return;
+                showError('当充值返利类型为固定时，返利值应大于等于0')
+                return
               }
             }
           }
 
           if (originInputs['QuotaForNewUser'] !== inputs.QuotaForNewUser) {
-            await updateOption('QuotaForNewUser', inputs.QuotaForNewUser);
+            await updateOption('QuotaForNewUser', inputs.QuotaForNewUser)
           }
           if (originInputs['QuotaForInvitee'] !== inputs.QuotaForInvitee) {
-            await updateOption('QuotaForInvitee', inputs.QuotaForInvitee);
+            await updateOption('QuotaForInvitee', inputs.QuotaForInvitee)
           }
           if (originInputs['QuotaForInviter'] !== inputs.QuotaForInviter) {
-            await updateOption('QuotaForInviter', inputs.QuotaForInviter);
+            await updateOption('QuotaForInviter', inputs.QuotaForInviter)
           }
           if (originInputs['InviterRewardType'] !== inputs.InviterRewardType) {
-            await updateOption('InviterRewardType', inputs.InviterRewardType);
+            await updateOption('InviterRewardType', inputs.InviterRewardType)
           }
           if (originInputs['InviterRewardValue'] !== inputs.InviterRewardValue) {
-            await updateOption('InviterRewardValue', inputs.InviterRewardValue);
+            await updateOption('InviterRewardValue', inputs.InviterRewardValue)
           }
           if (originInputs['PreConsumedQuota'] !== inputs.PreConsumedQuota) {
-            await updateOption('PreConsumedQuota', inputs.PreConsumedQuota);
+            await updateOption('PreConsumedQuota', inputs.PreConsumedQuota)
           }
-          break;
+          break
         case 'general':
           if (inputs.QuotaPerUnit < 0 || inputs.RetryTimes < 0 || inputs.RetryCooldownSeconds < 0 || inputs.RetryTimeOut < 0) {
-            showError('单位额度、重试次数、冷却时间、重试超时时间不能为负数');
-            return;
+            showError('单位额度、重试次数、冷却时间、重试超时时间不能为负数')
+            return
           }
 
           if (originInputs['TopUpLink'] !== inputs.TopUpLink) {
-            await updateOption('TopUpLink', inputs.TopUpLink);
+            await updateOption('TopUpLink', inputs.TopUpLink)
           }
           if (originInputs['ChatLink'] !== inputs.ChatLink) {
-            await updateOption('ChatLink', inputs.ChatLink);
+            await updateOption('ChatLink', inputs.ChatLink)
           }
           if (originInputs['QuotaPerUnit'] !== inputs.QuotaPerUnit) {
-            await updateOption('QuotaPerUnit', inputs.QuotaPerUnit);
+            await updateOption('QuotaPerUnit', inputs.QuotaPerUnit)
           }
           if (originInputs['RetryTimes'] !== inputs.RetryTimes) {
-            await updateOption('RetryTimes', inputs.RetryTimes);
+            await updateOption('RetryTimes', inputs.RetryTimes)
           }
           if (originInputs['RetryCooldownSeconds'] !== inputs.RetryCooldownSeconds) {
-            await updateOption('RetryCooldownSeconds', inputs.RetryCooldownSeconds);
+            await updateOption('RetryCooldownSeconds', inputs.RetryCooldownSeconds)
           }
           if (originInputs['RetryTimeOut'] !== inputs.RetryTimeOut) {
-            await updateOption('RetryTimeOut', inputs.RetryTimeOut);
+            await updateOption('RetryTimeOut', inputs.RetryTimeOut)
           }
           if (originInputs['EmptyResponseBillingEnabled'] !== inputs.EmptyResponseBillingEnabled) {
-            await updateOption('EmptyResponseBillingEnabled', inputs.EmptyResponseBillingEnabled);
+            await updateOption('EmptyResponseBillingEnabled', inputs.EmptyResponseBillingEnabled)
           }
-          break;
+          if (originInputs['UnifiedRequestResponseModelEnabled'] !== inputs.UnifiedRequestResponseModelEnabled) {
+            await updateOption('UnifiedRequestResponseModelEnabled', inputs.UnifiedRequestResponseModelEnabled)
+          }
+          break
         case 'other':
           if (originInputs['ChatImageRequestProxy'] !== inputs.ChatImageRequestProxy) {
-            await updateOption('ChatImageRequestProxy', inputs.ChatImageRequestProxy);
+            await updateOption('ChatImageRequestProxy', inputs.ChatImageRequestProxy)
           }
 
           if (originInputs['CFWorkerImageUrl'] !== inputs.CFWorkerImageUrl) {
-            await updateOption('CFWorkerImageUrl', inputs.CFWorkerImageUrl);
+            await updateOption('CFWorkerImageUrl', inputs.CFWorkerImageUrl)
           }
 
           if (originInputs['CFWorkerImageKey'] !== inputs.CFWorkerImageKey) {
-            await updateOption('CFWorkerImageKey', inputs.CFWorkerImageKey);
+            await updateOption('CFWorkerImageKey', inputs.CFWorkerImageKey)
           }
 
-          break;
+          break
         case 'payment':
           if (originInputs['PaymentUSDRate'] !== inputs.PaymentUSDRate) {
-            await updateOption('PaymentUSDRate', inputs.PaymentUSDRate);
+            await updateOption('PaymentUSDRate', inputs.PaymentUSDRate)
           }
           if (originInputs['PaymentMinAmount'] !== inputs.PaymentMinAmount) {
-            await updateOption('PaymentMinAmount', inputs.PaymentMinAmount);
+            await updateOption('PaymentMinAmount', inputs.PaymentMinAmount)
           }
           if (originInputs['RechargeDiscount'] !== inputs.RechargeDiscount) {
             try {
               if (!verifyJSON(inputs.RechargeDiscount)) {
-                showError('固定金额充值折扣不是合法的 JSON 字符串');
-                return;
+                showError('固定金额充值折扣不是合法的 JSON 字符串')
+                return
               }
-              await updateOption('RechargeDiscount', inputs.RechargeDiscount);
+              await updateOption('RechargeDiscount', inputs.RechargeDiscount)
             } catch (error) {
-              showError('固定金额充值折扣处理失败: ' + error.message);
-              return;
+              showError('固定金额充值折扣处理失败: ' + error.message)
+              return
             }
           }
-          break;
+          break
         case 'DisableChannelKeywords':
           if (originInputs.DisableChannelKeywords !== inputs.DisableChannelKeywords) {
             // DisableChannelKeywords 已经是字符串格式，无需解析
-            await updateOption('DisableChannelKeywords', inputs.DisableChannelKeywords);
+            await updateOption('DisableChannelKeywords', inputs.DisableChannelKeywords)
           }
-          break;
+          break
         case 'safety':
           try {
             if (originInputs.EnableSafe !== inputs.EnableSafe) {
-              await updateOption('EnableSafe', inputs.EnableSafe);
+              await updateOption('EnableSafe', inputs.EnableSafe)
             }
             if (originInputs.SafeToolName !== inputs.SafeToolName) {
-              await updateOption('SafeToolName', inputs.SafeToolName);
+              await updateOption('SafeToolName', inputs.SafeToolName)
             }
             if (originInputs.SafeKeyWords !== inputs.SafeKeyWords) {
-              await updateOption('SafeKeyWords', inputs.SafeKeyWords);
+              await updateOption('SafeKeyWords', inputs.SafeKeyWords)
             }
           } catch (error) {
-            console.error('安全设置提交错误:', error);
-            showError(`安全设置保存失败: ${error.message || '未知错误'}`);
-            setLoading(false);
-            return;
+            console.error('安全设置提交错误:', error)
+            showError(`安全设置保存失败: ${error.message || '未知错误'}`)
+            setLoading(false)
+            return
           }
-          break;
+          break
         case 'claude':
           if (originInputs.ClaudeBudgetTokensPercentage !== inputs.ClaudeBudgetTokensPercentage) {
-            await updateOption('ClaudeBudgetTokensPercentage', inputs.ClaudeBudgetTokensPercentage);
+            await updateOption('ClaudeBudgetTokensPercentage', inputs.ClaudeBudgetTokensPercentage)
           }
           if (originInputs.ClaudeDefaultMaxTokens !== inputs.ClaudeDefaultMaxTokens) {
             if (!verifyJSON(inputs.ClaudeDefaultMaxTokens)) {
-              showError('默认MaxToken数量不是合法的 JSON 字符串');
-              return;
+              showError('默认MaxToken数量不是合法的 JSON 字符串')
+              return
             }
-            await updateOption('ClaudeDefaultMaxTokens', inputs.ClaudeDefaultMaxTokens);
+            await updateOption('ClaudeDefaultMaxTokens', inputs.ClaudeDefaultMaxTokens)
           }
-          break;
+          break
 
         case 'gemini':
           if (originInputs.GeminiOpenThink !== inputs.GeminiOpenThink) {
             if (!verifyJSON(inputs.GeminiOpenThink)) {
-              showError('GeminiOpenThink 不是合法的 JSON 字符串');
-              return;
+              showError('GeminiOpenThink 不是合法的 JSON 字符串')
+              return
             }
-            await updateOption('GeminiOpenThink', inputs.GeminiOpenThink);
+            await updateOption('GeminiOpenThink', inputs.GeminiOpenThink)
           }
-          break;
+          break
       }
 
-      await getOptions();
-      await getSafeTools();
-      showSuccess('保存成功！');
+      await getOptions()
+      await getSafeTools()
+      showSuccess('保存成功！')
     } catch (error) {
-      showError('保存失败：' + (error.message || '未知错误'));
+      showError('保存失败：' + (error.message || '未知错误'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const deleteHistoryLogs = async () => {
+  const deleteHistoryLogs = async() => {
     try {
-      const res = await API.delete(`/api/log/?target_timestamp=${Math.floor(historyTimestamp)}`);
-      const { success, message, data } = res.data;
+      const res = await API.delete(`/api/log/?target_timestamp=${Math.floor(historyTimestamp)}`)
+      const { success, message, data } = res.data
       if (success) {
-        showSuccess(`${data} 条日志已清理！`);
-        return;
+        showSuccess(`${data} 条日志已清理！`)
+        return
       }
-      showError('日志清理失败：' + message);
+      showError('日志清理失败：' + message)
     } catch (error) {
-      return;
-    }
-  };
 
-  const genInvoiceMonth = async () => {
-    try {
-      const time = dayjs(invoiceMonth).format('YYYY-MM-DD');
-      const res = await API.post(`/api/option/invoice/gen/${time}`);
-      const { success, message } = res.data;
-      if (success) {
-        showSuccess(`账单生成成功！`);
-        return;
-      }
-      showError('账单生成失败：' + message);
-    } catch (error) {
-      return;
     }
-  };
-  const updateInvoiceMonth = async () => {
+  }
+
+  const genInvoiceMonth = async() => {
     try {
-      const time = dayjs(invoiceMonth).format('YYYY-MM-DD');
-      const res = await API.post(`/api/option/invoice/update/${time}`);
-      const { success, message } = res.data;
+      const time = dayjs(invoiceMonth).format('YYYY-MM-DD')
+      const res = await API.post(`/api/option/invoice/gen/${time}`)
+      const { success, message } = res.data
       if (success) {
-        showSuccess(`账单更新成功！`);
-        return;
+        showSuccess(`账单生成成功！`)
+        return
       }
-      showError('账单更新失败：' + message);
+      showError('账单生成失败：' + message)
     } catch (error) {
-      return;
+
     }
-  };
+  }
+  const updateInvoiceMonth = async() => {
+    try {
+      const time = dayjs(invoiceMonth).format('YYYY-MM-DD')
+      const res = await API.post(`/api/option/invoice/update/${time}`)
+      const { success, message } = res.data
+      if (success) {
+        showSuccess(`账单更新成功！`)
+        return
+      }
+      showError('账单更新失败：' + message)
+    } catch (error) {
+
+    }
+  }
 
   return (
     <Stack spacing={2}>
@@ -425,7 +429,8 @@ const OperationSetting = () => {
         <Stack justifyContent="flex-start" alignItems="flex-start" spacing={2}>
           <Stack direction={{ sm: 'column', md: 'row' }} spacing={{ xs: 3, sm: 2, md: 4 }}>
             <FormControl fullWidth>
-              <InputLabel htmlFor="TopUpLink">{t('setting_index.operationSettings.generalSettings.topUpLink.label')}</InputLabel>
+              <InputLabel
+                htmlFor="TopUpLink">{t('setting_index.operationSettings.generalSettings.topUpLink.label')}</InputLabel>
               <OutlinedInput
                 id="TopUpLink"
                 name="TopUpLink"
@@ -437,7 +442,8 @@ const OperationSetting = () => {
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="ChatLink">{t('setting_index.operationSettings.generalSettings.chatLink.label')}</InputLabel>
+              <InputLabel
+                htmlFor="ChatLink">{t('setting_index.operationSettings.generalSettings.chatLink.label')}</InputLabel>
               <OutlinedInput
                 id="ChatLink"
                 name="ChatLink"
@@ -449,7 +455,8 @@ const OperationSetting = () => {
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="QuotaPerUnit">{t('setting_index.operationSettings.generalSettings.quotaPerUnit.label')}</InputLabel>
+              <InputLabel
+                htmlFor="QuotaPerUnit">{t('setting_index.operationSettings.generalSettings.quotaPerUnit.label')}</InputLabel>
               <OutlinedInput
                 id="QuotaPerUnit"
                 name="QuotaPerUnit"
@@ -461,7 +468,8 @@ const OperationSetting = () => {
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="RetryTimes">{t('setting_index.operationSettings.generalSettings.retryTimes.label')}</InputLabel>
+              <InputLabel
+                htmlFor="RetryTimes">{t('setting_index.operationSettings.generalSettings.retryTimes.label')}</InputLabel>
               <OutlinedInput
                 id="RetryTimes"
                 name="RetryTimes"
@@ -487,7 +495,8 @@ const OperationSetting = () => {
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="RetryTimeOut">{t('setting_index.operationSettings.generalSettings.retryTimeOut.label')}</InputLabel>
+              <InputLabel
+                htmlFor="RetryTimeOut">{t('setting_index.operationSettings.generalSettings.retryTimeOut.label')}</InputLabel>
               <OutlinedInput
                 id="RetryTimeOut"
                 name="RetryTimeOut"
@@ -540,11 +549,22 @@ const OperationSetting = () => {
                 />
               }
             />
+            <FormControlLabel
+              label={t('setting_index.operationSettings.generalSettings.unifiedRequestResponseModel')}
+              control={
+                <Checkbox
+                  checked={dataLoaded ? inputs.UnifiedRequestResponseModelEnabled === 'true' : false}
+                  onChange={handleInputChange}
+                  name="UnifiedRequestResponseModelEnabled"
+                  disabled={!dataLoaded || loading}
+                />
+              }
+            />
           </Stack>
           <Button
             variant="contained"
             onClick={() => {
-              submitConfig('general').then();
+              submitConfig('general').then()
             }}
           >
             {t('setting_index.operationSettings.generalSettings.saveButton')}
@@ -632,7 +652,8 @@ const OperationSetting = () => {
             </FormControl>
 
             <FormControl>
-              <InputLabel htmlFor="CFWorkerImageKey">{t('setting_index.operationSettings.otherSettings.CFWorkerImageUrl.key')}</InputLabel>
+              <InputLabel
+                htmlFor="CFWorkerImageKey">{t('setting_index.operationSettings.otherSettings.CFWorkerImageUrl.key')}</InputLabel>
               <OutlinedInput
                 id="CFWorkerImageKey"
                 name="CFWorkerImageKey"
@@ -647,7 +668,7 @@ const OperationSetting = () => {
           <Button
             variant="contained"
             onClick={() => {
-              submitConfig('other').then();
+              submitConfig('other').then()
             }}
           >
             {t('setting_index.operationSettings.otherSettings.saveButton')}
@@ -677,7 +698,7 @@ const OperationSetting = () => {
                 value={historyTimestamp === null ? null : dayjs.unix(historyTimestamp)}
                 disabled={loading}
                 onChange={(newValue) => {
-                  setHistoryTimestamp(newValue === null ? null : newValue.unix());
+                  setHistoryTimestamp(newValue === null ? null : newValue.unix())
                 }}
                 slotProps={{
                   actionBar: {
@@ -690,7 +711,7 @@ const OperationSetting = () => {
           <Button
             variant="contained"
             onClick={() => {
-              deleteHistoryLogs().then();
+              deleteHistoryLogs().then()
             }}
           >
             {t('setting_index.operationSettings.logSettings.clearLogs')}
@@ -714,10 +735,10 @@ const OperationSetting = () => {
                   onChange={(newValue) => {
                     // Set to the first day of the selected month
                     if (newValue) {
-                      const firstDayOfMonth = newValue.startOf('month');
-                      setInvoiceMonth(firstDayOfMonth.valueOf());
+                      const firstDayOfMonth = newValue.startOf('month')
+                      setInvoiceMonth(firstDayOfMonth.valueOf())
                     } else {
-                      setInvoiceMonth(null);
+                      setInvoiceMonth(null)
                     }
                   }}
                   slotProps={{
@@ -734,9 +755,9 @@ const OperationSetting = () => {
                 color="success"
                 onClick={() => {
                   if (invoiceMonth) {
-                    genInvoiceMonth().then();
+                    genInvoiceMonth().then()
                   } else {
-                    showError('Please select invoice Month');
+                    showError('Please select invoice Month')
                   }
                 }}
               >
@@ -747,9 +768,9 @@ const OperationSetting = () => {
                 color="warning"
                 onClick={() => {
                   if (invoiceMonth) {
-                    updateInvoiceMonth().then();
+                    updateInvoiceMonth().then()
                   } else {
-                    showError('Please select invoice Month');
+                    showError('Please select invoice Month')
                   }
                 }}
               >
@@ -819,7 +840,7 @@ const OperationSetting = () => {
           <Button
             variant="contained"
             onClick={() => {
-              submitConfig('monitor').then();
+              submitConfig('monitor').then()
             }}
           >
             {t('setting_index.operationSettings.monitoringSettings.saveMonitoringSettings')}
@@ -830,7 +851,8 @@ const OperationSetting = () => {
         <Stack justifyContent="flex-start" alignItems="flex-start" spacing={2}>
           <Stack direction={{ sm: 'column', md: 'row' }} spacing={{ xs: 3, sm: 2, md: 4 }}>
             <FormControl fullWidth>
-              <InputLabel htmlFor="QuotaForNewUser">{t('setting_index.operationSettings.quotaSettings.quotaForNewUser.label')}</InputLabel>
+              <InputLabel
+                htmlFor="QuotaForNewUser">{t('setting_index.operationSettings.quotaSettings.quotaForNewUser.label')}</InputLabel>
               <OutlinedInput
                 id="QuotaForNewUser"
                 name="QuotaForNewUser"
@@ -858,7 +880,8 @@ const OperationSetting = () => {
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="QuotaForInviter">{t('setting_index.operationSettings.quotaSettings.quotaForInviter.label')}</InputLabel>
+              <InputLabel
+                htmlFor="QuotaForInviter">{t('setting_index.operationSettings.quotaSettings.quotaForInviter.label')}</InputLabel>
               <OutlinedInput
                 id="QuotaForInviter"
                 name="QuotaForInviter"
@@ -880,8 +903,10 @@ const OperationSetting = () => {
                 label={t('setting_index.operationSettings.quotaSettings.rechargeRewardType.label')}
                 disabled={loading}
               >
-                <MenuItem value="fixed">{t('setting_index.operationSettings.quotaSettings.rechargeRewardType.fixed')}</MenuItem>
-                <MenuItem value="percentage">{t('setting_index.operationSettings.quotaSettings.rechargeRewardType.percentage')}</MenuItem>
+                <MenuItem
+                  value="fixed">{t('setting_index.operationSettings.quotaSettings.rechargeRewardType.fixed')}</MenuItem>
+                <MenuItem
+                  value="percentage">{t('setting_index.operationSettings.quotaSettings.rechargeRewardType.percentage')}</MenuItem>
               </Select>
             </FormControl>
             <FormControl fullWidth>
@@ -910,11 +935,13 @@ const OperationSetting = () => {
                   step: 1
                 }}
                 disabled={loading}
-                endAdornment={inputs.InviterRewardType === 'percentage' ? <InputAdornment position="end">%</InputAdornment> : null}
+                endAdornment={inputs.InviterRewardType === 'percentage' ? <InputAdornment
+                  position="end">%</InputAdornment> : null}
               />
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel htmlFor="QuotaForInvitee">{t('setting_index.operationSettings.quotaSettings.quotaForInvitee.label')}</InputLabel>
+              <InputLabel
+                htmlFor="QuotaForInvitee">{t('setting_index.operationSettings.quotaSettings.quotaForInvitee.label')}</InputLabel>
               <OutlinedInput
                 id="QuotaForInvitee"
                 name="QuotaForInvitee"
@@ -931,7 +958,7 @@ const OperationSetting = () => {
           <Button
             variant="contained"
             onClick={() => {
-              submitConfig('quota').then();
+              submitConfig('quota').then()
             }}
           >
             {t('setting_index.operationSettings.quotaSettings.saveQuotaSettings')}
@@ -943,12 +970,13 @@ const OperationSetting = () => {
           <Stack justifyContent="flex-start" alignItems="flex-start" spacing={2}>
             <FormControl fullWidth>
               <Alert severity="info">
-                <div dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.paymentSettings.alert') }} />
+                <div dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.paymentSettings.alert') }}/>
               </Alert>
             </FormControl>
             <Stack direction={{ sm: 'column', md: 'row' }} spacing={{ xs: 3, sm: 2, md: 4 }}>
               <FormControl fullWidth>
-                <InputLabel htmlFor="PaymentUSDRate">{t('setting_index.operationSettings.paymentSettings.usdRate.label')}</InputLabel>
+                <InputLabel
+                  htmlFor="PaymentUSDRate">{t('setting_index.operationSettings.paymentSettings.usdRate.label')}</InputLabel>
                 <OutlinedInput
                   id="PaymentUSDRate"
                   name="PaymentUSDRate"
@@ -961,7 +989,8 @@ const OperationSetting = () => {
                 />
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel htmlFor="PaymentMinAmount">{t('setting_index.operationSettings.paymentSettings.minAmount.label')}</InputLabel>
+                <InputLabel
+                  htmlFor="PaymentMinAmount">{t('setting_index.operationSettings.paymentSettings.minAmount.label')}</InputLabel>
                 <OutlinedInput
                   id="PaymentMinAmount"
                   name="PaymentMinAmount"
@@ -977,7 +1006,8 @@ const OperationSetting = () => {
           </Stack>
           <Stack spacing={2}>
             <Alert severity="info">
-              <div dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.paymentSettings.discountInfo') }} />
+              <div
+                dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.paymentSettings.discountInfo') }}/>
             </Alert>
             <FormControl fullWidth>
               <TextField
@@ -998,7 +1028,7 @@ const OperationSetting = () => {
           <Button
             variant="contained"
             onClick={() => {
-              submitConfig('payment').then();
+              submitConfig('payment').then()
             }}
           >
             {t('setting_index.operationSettings.paymentSettings.save')}
@@ -1009,15 +1039,15 @@ const OperationSetting = () => {
       <SubCard title={t('setting_index.operationSettings.chatLinkSettings.title')}>
         <Stack spacing={2}>
           <Alert severity="info">
-            <div dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.chatLinkSettings.info') }} />
+            <div dangerouslySetInnerHTML={{ __html: t('setting_index.operationSettings.chatLinkSettings.info') }}/>
           </Alert>
           <Stack justifyContent="flex-start" alignItems="flex-start" spacing={2}>
-            <ChatLinksDataGrid links={inputs.ChatLinks || '[]'} onChange={handleInputChange} />
+            <ChatLinksDataGrid links={inputs.ChatLinks || '[]'} onChange={handleInputChange}/>
 
             <Button
               variant="contained"
               onClick={() => {
-                submitConfig('chatlinks').then();
+                submitConfig('chatlinks').then()
               }}
             >
               {t('setting_index.operationSettings.chatLinkSettings.save')}
@@ -1046,7 +1076,7 @@ const OperationSetting = () => {
             <Button
               variant="contained"
               onClick={() => {
-                submitConfig('DisableChannelKeywords').then();
+                submitConfig('DisableChannelKeywords').then()
               }}
             >
               {t('setting_index.operationSettings.disableChannelKeywordsSettings.save')}
@@ -1092,7 +1122,7 @@ const OperationSetting = () => {
             <Button
               variant="contained"
               onClick={() => {
-                submitConfig('claude').then();
+                submitConfig('claude').then()
               }}
             >
               {t('setting_index.operationSettings.claudeSettings.save')}
@@ -1122,7 +1152,7 @@ const OperationSetting = () => {
             <Button
               variant="contained"
               onClick={() => {
-                submitConfig('gemini').then();
+                submitConfig('gemini').then()
               }}
             >
               {t('setting_index.operationSettings.geminiSettings.save')}
@@ -1157,20 +1187,21 @@ const OperationSetting = () => {
                   checked={dataLoaded ? inputs.EnableSafe === 'true' : false}
                   disabled={!dataLoaded || loading}
                   onChange={(e) => {
-                    console.log('Checkbox changed:', e.target.checked);
-                    const newValue = e.target.checked ? 'true' : 'false';
-                    console.log('Setting EnableSafe to:', newValue);
+                    console.log('Checkbox changed:', e.target.checked)
+                    const newValue = e.target.checked ? 'true' : 'false'
+                    console.log('Setting EnableSafe to:', newValue)
                     setInputs((prev) => ({
                       ...prev,
                       EnableSafe: newValue
-                    }));
+                    }))
                   }}
                 />
               }
             />
 
             <FormControl fullWidth>
-              <InputLabel htmlFor="SafeToolName">{t('setting_index.operationSettings.safetySettings.safeToolName.label')}</InputLabel>
+              <InputLabel
+                htmlFor="SafeToolName">{t('setting_index.operationSettings.safetySettings.safeToolName.label')}</InputLabel>
               <Select
                 id="SafeToolName"
                 name="SafeToolName"
@@ -1181,11 +1212,12 @@ const OperationSetting = () => {
                   setInputs((prev) => ({
                     ...prev,
                     SafeToolName: e.target.value
-                  }));
+                  }))
                 }}
               >
                 {safeToolsLoading && <MenuItem value="">加载中...</MenuItem>}
-                {!safeToolsLoading && (!inputs.safeTools || inputs.safeTools.length === 0) && <MenuItem value="">暂无安全工具</MenuItem>}
+                {!safeToolsLoading && (!inputs.safeTools || inputs.safeTools.length === 0) &&
+                  <MenuItem value="">暂无安全工具</MenuItem>}
                 {inputs.safeTools &&
                   inputs.safeTools.map((tool) => (
                     <MenuItem key={tool} value={tool}>
@@ -1206,7 +1238,7 @@ const OperationSetting = () => {
                 onChange={handleTextFieldChange}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
-                    e.stopPropagation();
+                    e.stopPropagation()
                   }
                 }}
                 minRows={5}
@@ -1218,7 +1250,7 @@ const OperationSetting = () => {
             <Button
               variant="contained"
               onClick={() => {
-                submitConfig('safety').then();
+                submitConfig('safety').then()
               }}
             >
               {t('setting_index.operationSettings.safetySettings.save')}
@@ -1227,7 +1259,7 @@ const OperationSetting = () => {
         </Stack>
       </SubCard>
     </Stack>
-  );
-};
+  )
+}
 
-export default OperationSetting;
+export default OperationSetting

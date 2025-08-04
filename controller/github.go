@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"done-hub/common"
 	"done-hub/common/config"
 	"done-hub/common/logger"
 	"done-hub/common/utils"
@@ -263,6 +264,17 @@ func GitHubOAuth(c *gin.Context) {
 				"message": "管理员关闭了新用户注册",
 			})
 			return
+		}
+
+		// 验证 GitHub 提供的邮箱格式
+		if githubUser.Email != "" {
+			if err := common.ValidateEmailStrict(githubUser.Email); err != nil {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "邮箱格式不符合要求",
+				})
+				return
+			}
 		}
 
 		user = &model.User{

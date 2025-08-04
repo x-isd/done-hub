@@ -5,17 +5,21 @@ import (
 	"done-hub/common/config"
 	"done-hub/common/requester"
 	"done-hub/common/utils"
+	"done-hub/providers/base"
 	"done-hub/types"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CozeStreamHandler struct {
 	Usage   *types.Usage
 	Request *types.ChatCompletionRequest
+	Context *gin.Context // 添加 Context 用于获取响应模型名称
 }
 
 func (p *CozeProvider) CreateChatCompletion(request *types.ChatCompletionRequest) (*types.ChatCompletionResponse, *types.OpenAIErrorWithStatusCode) {
@@ -51,6 +55,7 @@ func (p *CozeProvider) CreateChatCompletionStream(request *types.ChatCompletionR
 	chatHandler := &CozeStreamHandler{
 		Usage:   p.Usage,
 		Request: request,
+		Context: p.Context, // 传递 Context
 	}
 
 	return requester.RequestStream[string](p.Requester, resp, chatHandler.handlerStream)
@@ -90,11 +95,14 @@ func (p *CozeProvider) convertToChatOpenai(response *CozeResponse, request *type
 		return
 	}
 
+	// 获取响应中应该使用的模型名称
+	responseModel := p.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", utils.GetUUID()),
 		Object:  "chat.completion",
 		Created: utils.GetTimestamp(),
-		Model:   request.Model,
+		Model:   responseModel,
 		Choices: []types.ChatCompletionChoice{{
 			Index: 0,
 			Message: types.ChatCompletionMessage{
@@ -169,11 +177,17 @@ func (h *CozeStreamHandler) handlerStream(rawLine *[]byte, dataChan chan string,
 }
 
 func (h *CozeStreamHandler) convertToOpenaiStream(chatResponse *CozeStreamResponse, dataChan chan string) {
+	// 获取响应中应该使用的模型名称
+	responseModel := h.Request.Model
+	if h.Context != nil {
+		responseModel = base.GetResponseModelNameFromContext(h.Context, h.Request.Model)
+	}
+
 	streamResponse := types.ChatCompletionStreamResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", utils.GetUUID()),
 		Object:  "chat.completion.chunk",
 		Created: utils.GetTimestamp(),
-		Model:   h.Request.Model,
+		Model:   responseModel,
 	}
 
 	choice := types.ChatCompletionStreamChoice{

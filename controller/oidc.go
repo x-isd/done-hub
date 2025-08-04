@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"done-hub/common"
 	"done-hub/common/config"
 	"done-hub/common/logger"
 	"done-hub/common/oidc"
@@ -208,7 +209,18 @@ func OIDCAuth(c *gin.Context) {
 	// 填充用户信息并创建账户
 	user.Username = userName.(string)
 	if email, ok := claims["email"]; ok && email != nil {
-		user.Email = email.(string)
+		emailStr := email.(string)
+		// 验证 OIDC 提供的邮箱格式
+		if emailStr != "" {
+			if err := common.ValidateEmailStrict(emailStr); err != nil {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "邮箱格式不符合要求",
+				})
+				return
+			}
+		}
+		user.Email = emailStr
 	}
 	if displayName, ok := claims["displayName"]; ok && displayName != nil {
 		user.DisplayName = displayName.(string)

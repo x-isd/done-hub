@@ -92,9 +92,12 @@ func (p *PalmProvider) convertToChatOpenai(response *PaLMChatResponse, request *
 		return
 	}
 
+	// 获取响应中应该使用的模型名称
+	responseModel := p.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		Choices: make([]types.ChatCompletionChoice, 0, len(response.Candidates)),
-		Model:   request.Model,
+		Model:   responseModel,
 	}
 	for i, candidate := range response.Candidates {
 		choice := types.ChatCompletionChoice{

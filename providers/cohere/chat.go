@@ -117,12 +117,16 @@ func ConvertToChatOpenai(provider base.ProviderInterface, response *ChatResponse
 		Message:      *response.Message.ToChatCompletionMessage(),
 		FinishReason: convertFinishReason(response.FinishReason),
 	}
+
+	// 获取响应中应该使用的模型名称
+	responseModel := provider.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		ID:      response.Id,
 		Object:  "chat.completion",
 		Created: utils.GetTimestamp(),
 		Choices: []types.ChatCompletionChoice{choice},
-		Model:   request.Model,
+		Model:   responseModel,
 		Usage:   &types.Usage{},
 	}
 

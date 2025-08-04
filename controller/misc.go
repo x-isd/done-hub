@@ -87,10 +87,10 @@ func GetHomePageContent(c *gin.Context) {
 
 func SendEmailVerification(c *gin.Context) {
 	email := c.Query("email")
-	if err := common.Validate.Var(email, "required,email"); err != nil {
+	if err := common.ValidateEmailStrict(email); err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "无效的参数",
+			"message": "邮箱格式不符合要求",
 		})
 		return
 	}

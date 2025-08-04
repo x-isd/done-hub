@@ -46,6 +46,10 @@ func (p *MoonshotProvider) CreateChatCompletion(request *types.ChatCompletionReq
 
 	*p.Usage = *response.Usage
 
+	// 修改响应中的模型名称为用户请求的原始模型名称
+	responseModel := p.GetResponseModelName(request.Model)
+	response.Model = responseModel
+
 	return &response.ChatCompletionResponse, nil
 }
 

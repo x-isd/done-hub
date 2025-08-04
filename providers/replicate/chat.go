@@ -118,12 +118,15 @@ func (p *ReplicateProvider) convertToChatOpenai(response *ReplicateResponse[[]st
 		FinishReason: types.FinishReasonStop,
 	}
 
+	// 获取响应中应该使用的模型名称
+	responseModel := p.GetResponseModelName(response.Model)
+
 	openaiResponse := &types.ChatCompletionResponse{
 		ID:      response.ID,
 		Object:  "chat.completion",
 		Created: utils.GetTimestamp(),
 		Choices: []types.ChatCompletionChoice{choice},
-		Model:   response.Model,
+		Model:   responseModel,
 		Usage: &types.Usage{
 			CompletionTokens: 0,
 			PromptTokens:     0,

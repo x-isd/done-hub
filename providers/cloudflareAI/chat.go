@@ -85,11 +85,14 @@ func (p *CloudflareAIProvider) convertToChatOpenai(response *ChatRespone, reques
 		return
 	}
 
+	// 获取响应中应该使用的模型名称
+	responseModel := p.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", utils.GetUUID()),
 		Object:  "chat.completion",
 		Created: utils.GetTimestamp(),
-		Model:   request.Model,
+		Model:   responseModel,
 		Choices: []types.ChatCompletionChoice{{
 			Index: 0,
 			Message: types.ChatCompletionMessage{

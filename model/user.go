@@ -17,7 +17,7 @@ import (
 // Otherwise, the sensitive information will be saved on local storage in plain text!
 type User struct {
 	Id               int            `json:"id"`
-	Username         string         `json:"username" gorm:"unique;index" validate:"max=12"`
+	Username         string         `json:"username" gorm:"unique;index" validate:"required,max=12"`
 	Password         string         `json:"password" gorm:"not null;" validate:"min=8,max=20"`
 	DisplayName      string         `json:"display_name" gorm:"index" validate:"max=20"`
 	Role             int            `json:"role" gorm:"type:int;default:1"`   // admin, common
@@ -119,8 +119,18 @@ func DeleteUserById(id int) (err error) {
 }
 
 func (user *User) Insert(inviterId int) error {
+	if strings.TrimSpace(user.Username) == "" {
+		return errors.New("用户名不能为空！")
+	}
 	if RecordExists(&User{}, "username", user.Username, nil) {
 		return errors.New("用户名已存在！")
+	}
+
+	// 如果提供了邮箱，进行严格验证
+	if user.Email != "" {
+		if err := common.ValidateEmailStrict(user.Email); err != nil {
+			return errors.New("邮箱格式不符合要求")
+		}
 	}
 	var err error
 	if user.Password != "" {
@@ -207,7 +217,7 @@ func (user *User) ValidateAndFill() (err error) {
 	// that means if your field's value is 0, '', false or other zero values,
 	// it won't be used to build query conditions
 	password := user.Password
-	if user.Username == "" || password == "" {
+	if strings.TrimSpace(user.Username) == "" || strings.TrimSpace(password) == "" {
 		return errors.New("用户名或密码为空")
 	}
 	err = DB.Where("username = ?", user.Username).First(user).Error

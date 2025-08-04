@@ -80,6 +80,9 @@ func (p *HunyuanProvider) convertToChatOpenai(response *ChatCompletionsResponse,
 
 	txResponse := response.Response
 
+	// 获取响应中应该使用的模型名称
+	responseModel := p.GetResponseModelName(request.Model)
+
 	openaiResponse = &types.ChatCompletionResponse{
 		Object:  "chat.completion",
 		Created: txResponse.Created,
@@ -88,7 +91,7 @@ func (p *HunyuanProvider) convertToChatOpenai(response *ChatCompletionsResponse,
 			CompletionTokens: txResponse.Usage.CompletionTokens,
 			TotalTokens:      txResponse.Usage.TotalTokens,
 		},
-		Model: request.Model,
+		Model: responseModel,
 	}
 
 	for _, choice := range txResponse.Choices {

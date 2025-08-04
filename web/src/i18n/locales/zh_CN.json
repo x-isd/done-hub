@@ -740,6 +740,7 @@
         "displayTokenStat": "Billing 相关 API 显示令牌额度而非用户额度",
         "approximateToken": "使用近似的方式估算 token 数以减少计算量",
         "emptyResponseBilling": "空回复计费",
+        "unifiedRequestResponseModel": "统一请求响应模型",
         "saveButton": "保存通用设置"
       },
       "invoice": {

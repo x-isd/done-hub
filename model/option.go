@@ -131,6 +131,9 @@ func InitOptionMap() {
 		return nil
 	}, "")
 
+	// 注册统一请求响应模型配置项
+	config.GlobalOption.RegisterBool("UnifiedRequestResponseModelEnabled", &config.UnifiedRequestResponseModelEnabled)
+
 	loadOptionsFromDatabase()
 }
 
