@@ -32,9 +32,27 @@ const App = () => {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('theme');
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
     if (storedTheme) {
       dispatch({ type: SET_THEME, theme: storedTheme });
+    } else {
+      const systemTheme = mediaQuery.matches ? 'dark' : 'light';
+      dispatch({ type: SET_THEME, theme: systemTheme });
     }
+    const handleThemeChange = (e) => {
+      const storedTheme = localStorage.getItem('theme');
+      if (!storedTheme) {
+        const systemTheme = e.matches ? 'dark' : 'light';
+        dispatch({ type: SET_THEME, theme: systemTheme });
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    };
   }, [dispatch]);
 
   return (

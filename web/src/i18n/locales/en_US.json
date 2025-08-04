@@ -828,6 +828,11 @@
     "testClick": "Click speed test (only supports chat model)"
   },
   "setting": "Setting",
+  "theme": {
+    "auto": "Follow System",
+    "light": "Light Mode",
+    "dark": "Dark Mode"
+  },
   "setting_index": {
     "operationSettings": {
       "chatLinkSettings": {
@@ -866,7 +871,8 @@
           "placeholder": "Retry Timeout (seconds)"
         },
         "emptyResponseBilling": "Empty Response Billing",
-        "unifiedRequestResponseModel": "Unified Request Response Model"
+        "unifiedRequestResponseModel": "Unified Request Response Model",
+        "unifiedRequestResponseModelTooltip": "When model mapping exists, the model value in the response will be the requested model value instead of the actual called model name"
       },
       "logSettings": {
         "clearLogs": "Clear Historical Logs",
