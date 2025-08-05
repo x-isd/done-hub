@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -352,7 +353,6 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 	}
 
 	// 转换消息
-
 	for _, msg := range r.claudeRequest.Messages {
 
 		openaiMsg := types.ChatCompletionMessage{
@@ -418,17 +418,22 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 				if len(textParts) > 0 {
 					contentParts := make([]types.ChatMessagePart, 0)
 					for _, textPart := range textParts {
-						contentParts = append(contentParts, types.ChatMessagePart{
-							Type: "text",
-							Text: textPart["text"].(string),
-						})
+						if text, ok := textPart["text"].(string); ok && text != "" {
+							contentParts = append(contentParts, types.ChatMessagePart{
+								Type: "text",
+								Text: text,
+							})
+						}
 					}
 
-					userMsg := types.ChatCompletionMessage{
-						Role:    types.ChatMessageRoleUser,
-						Content: contentParts,
+					// 只有当有有效内容时才创建消息
+					if len(contentParts) > 0 {
+						userMsg := types.ChatCompletionMessage{
+							Role:    types.ChatMessageRoleUser,
+							Content: contentParts,
+						}
+						openaiRequest.Messages = append(openaiRequest.Messages, userMsg)
 					}
-					openaiRequest.Messages = append(openaiRequest.Messages, userMsg)
 				}
 
 			} else if msg.Role == "assistant" {
@@ -456,12 +461,13 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 				// 处理 text 部分 - 每个文本部分创建单独的助手消息
 
 				for _, textPart := range textParts {
-
-					assistantMsg := types.ChatCompletionMessage{
-						Role:    types.ChatMessageRoleAssistant,
-						Content: textPart["text"].(string),
+					if text, ok := textPart["text"].(string); ok && text != "" {
+						assistantMsg := types.ChatCompletionMessage{
+							Role:    types.ChatMessageRoleAssistant,
+							Content: text,
+						}
+						openaiRequest.Messages = append(openaiRequest.Messages, assistantMsg)
 					}
-					openaiRequest.Messages = append(openaiRequest.Messages, assistantMsg)
 				}
 
 				// 处理 tool_use 部分 - 创建单独的助手消息，content 为 null
@@ -487,7 +493,6 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 							}
 						}
 						if toolName == "" {
-							logger.SysLog(fmt.Sprintf("[Claude Convert] 跳过工具调用，name 为空: %+v", toolPart))
 							continue // 跳过没有名称的工具调用
 						}
 
@@ -530,13 +535,16 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 		// 转换为 OpenAI 格式
 
 		for _, tool := range r.claudeRequest.Tools {
+			// 为直接Gemini渠道清理schema中的不兼容字段
+			cleanedParameters := r.cleanSchemaForDirectGemini(tool.InputSchema)
+
 			// input_schema → parameters
 			openaiTool := &types.ChatCompletionTool{
 				Type: "function",
 				Function: types.ChatCompletionFunction{
 					Name:        tool.Name,
 					Description: tool.Description,
-					Parameters:  tool.InputSchema, // Claude的input_schema → OpenAI的parameters
+					Parameters:  cleanedParameters, // 使用清理后的参数
 				},
 			}
 			tools = append(tools, openaiTool)
@@ -549,9 +557,304 @@ func (r *relayClaudeOnly) convertClaudeToOpenAI() (*types.ChatCompletionRequest,
 		}
 	}
 
-	// 打印转换后的 OpenAI 请求内容
+	return openaiRequest, nil
+}
+
+// convertClaudeToOpenAIForVertexAI 专门为VertexAI渠道转换，不进行schema清理
+// VertexAI会在后续使用CleanGeminiRequestData进行清理
+func (r *relayClaudeOnly) convertClaudeToOpenAIForVertexAI() (*types.ChatCompletionRequest, *types.OpenAIErrorWithStatusCode) {
+	openaiRequest := &types.ChatCompletionRequest{
+		Model:       r.claudeRequest.Model,
+		Messages:    make([]types.ChatCompletionMessage, 0),
+		MaxTokens:   r.claudeRequest.MaxTokens,
+		Temperature: r.claudeRequest.Temperature,
+		TopP:        r.claudeRequest.TopP,
+		Stream:      r.claudeRequest.Stream,
+	}
+
+	// 处理 Stop 参数，过滤掉 null 值
+	if r.claudeRequest.StopSequences != nil {
+		openaiRequest.Stop = r.claudeRequest.StopSequences
+	}
+
+	// 处理系统消息
+	if r.claudeRequest.System != nil {
+
+		switch sys := r.claudeRequest.System.(type) {
+		case string:
+
+			openaiRequest.Messages = append(openaiRequest.Messages, types.ChatCompletionMessage{
+				Role:    types.ChatMessageRoleSystem,
+				Content: sys,
+			})
+		case []interface{}:
+
+			// 处理数组形式的系统消息 - 每个文本部分创建单独的系统消息
+			for _, item := range sys {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if itemType, exists := itemMap["type"]; exists && itemType == "text" {
+						if text, textExists := itemMap["text"]; textExists {
+							if textStr, ok := text.(string); ok && textStr != "" {
+								openaiRequest.Messages = append(openaiRequest.Messages, types.ChatCompletionMessage{
+									Role:    types.ChatMessageRoleSystem,
+									Content: textStr,
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 转换消息（与convertClaudeToOpenAI相同的逻辑，但不清理schema）
+	for _, msg := range r.claudeRequest.Messages {
+
+		openaiMsg := types.ChatCompletionMessage{
+			Role: msg.Role,
+		}
+
+		// 处理消息内容
+		switch content := msg.Content.(type) {
+		case string:
+
+			openaiMsg.Content = content
+			openaiRequest.Messages = append(openaiRequest.Messages, openaiMsg)
+		case []interface{}:
+			// 处理复杂内容
+			if msg.Role == "user" {
+				// 用户消息：先处理 tool_result，再处理 text
+				toolParts := make([]map[string]interface{}, 0)
+				textParts := make([]map[string]interface{}, 0)
+
+				for _, part := range content {
+					if partMap, ok := part.(map[string]interface{}); ok {
+						partType, _ := partMap["type"].(string)
+
+						switch partType {
+						case "tool_result":
+							if _, exists := partMap["tool_use_id"].(string); exists {
+								toolParts = append(toolParts, partMap)
+							}
+						case "text":
+							if _, exists := partMap["text"].(string); exists {
+								textParts = append(textParts, partMap)
+							}
+						}
+					}
+				}
+
+				// 处理 tool_result 部分
+				for _, tool := range toolParts {
+					toolContent := ""
+					if resultContent, exists := tool["content"]; exists {
+						if contentStr, ok := resultContent.(string); ok {
+							toolContent = contentStr
+						} else {
+							contentBytes, _ := json.Marshal(resultContent)
+							toolContent = string(contentBytes)
+						}
+					}
+
+					toolUseId, _ := tool["tool_use_id"].(string)
+
+					toolMsg := types.ChatCompletionMessage{
+						Role:       types.ChatMessageRoleTool,
+						Content:    toolContent,
+						ToolCallID: toolUseId,
+					}
+					openaiRequest.Messages = append(openaiRequest.Messages, toolMsg)
+				}
+
+				// 处理 text 部分
+				for _, textPart := range textParts {
+					if text, exists := textPart["text"].(string); exists && text != "" {
+						userMsg := types.ChatCompletionMessage{
+							Role:    types.ChatMessageRoleUser,
+							Content: text,
+						}
+						openaiRequest.Messages = append(openaiRequest.Messages, userMsg)
+					}
+				}
+			} else if msg.Role == "assistant" {
+				// 助手消息：分别处理 text 和 tool_use
+				textParts := make([]map[string]interface{}, 0)
+				toolCallParts := make([]map[string]interface{}, 0)
+
+				for _, part := range content {
+					if partMap, ok := part.(map[string]interface{}); ok {
+						partType, _ := partMap["type"].(string)
+
+						switch partType {
+						case "text":
+							if _, exists := partMap["text"].(string); exists {
+								textParts = append(textParts, partMap)
+							}
+						case "tool_use":
+							if _, exists := partMap["id"].(string); exists {
+								toolCallParts = append(toolCallParts, partMap)
+							}
+						}
+					}
+				}
+
+				// 处理 text 部分 - 每个文本部分创建单独的助手消息
+
+				for _, textPart := range textParts {
+					if text, ok := textPart["text"].(string); ok && text != "" {
+						assistantMsg := types.ChatCompletionMessage{
+							Role:    types.ChatMessageRoleAssistant,
+							Content: text,
+						}
+						openaiRequest.Messages = append(openaiRequest.Messages, assistantMsg)
+					}
+				}
+
+				// 处理 tool_use 部分 - 创建单独的助手消息，content 为 null
+				if len(toolCallParts) > 0 {
+					toolCalls := make([]*types.ChatCompletionToolCalls, 0)
+					for _, toolPart := range toolCallParts {
+						// 安全地获取工具调用信息
+						var toolId, toolName string
+						var input interface{}
+
+						if id, exists := toolPart["id"]; exists && id != nil {
+							if idStr, ok := id.(string); ok && idStr != "" {
+								toolId = idStr
+							}
+						}
+						if toolId == "" {
+							toolId = fmt.Sprintf("call_%d", time.Now().UnixNano())
+						}
+
+						if name, exists := toolPart["name"]; exists && name != nil {
+							if nameStr, ok := name.(string); ok && nameStr != "" {
+								toolName = nameStr
+							}
+						}
+						if toolName == "" {
+							continue // 跳过没有名称的工具调用
+						}
+
+						if inputData, exists := toolPart["input"]; exists {
+							input = inputData
+						} else {
+							input = map[string]interface{}{}
+						}
+
+						inputBytes, _ := json.Marshal(input)
+
+						toolCall := &types.ChatCompletionToolCalls{
+							Id:   toolId,
+							Type: types.ChatMessageRoleFunction,
+							Function: &types.ChatCompletionToolCallsFunction{
+								Name:      toolName,
+								Arguments: string(inputBytes),
+							},
+						}
+						toolCalls = append(toolCalls, toolCall)
+					}
+
+					assistantMsg := types.ChatCompletionMessage{
+						Role:      types.ChatMessageRoleAssistant,
+						Content:   nil,
+						ToolCalls: toolCalls,
+					}
+					openaiRequest.Messages = append(openaiRequest.Messages, assistantMsg)
+				}
+			}
+			continue // 跳过默认的 append
+		default:
+			openaiRequest.Messages = append(openaiRequest.Messages, openaiMsg)
+		}
+	}
+
+	// 处理工具定义 - VertexAI版本不进行schema清理
+	if len(r.claudeRequest.Tools) > 0 {
+		tools := make([]*types.ChatCompletionTool, 0)
+
+		for _, tool := range r.claudeRequest.Tools {
+			// VertexAI版本：直接使用原始的InputSchema，不进行清理
+			// 后续会通过CleanGeminiRequestData进行统一清理
+			openaiTool := &types.ChatCompletionTool{
+				Type: "function",
+				Function: types.ChatCompletionFunction{
+					Name:        tool.Name,
+					Description: tool.Description,
+					Parameters:  tool.InputSchema, // 直接使用原始schema
+				},
+			}
+			tools = append(tools, openaiTool)
+		}
+		openaiRequest.Tools = tools
+
+		// 处理工具选择
+		if r.claudeRequest.ToolChoice != nil {
+			openaiRequest.ToolChoice = r.claudeRequest.ToolChoice
+		}
+	}
 
 	return openaiRequest, nil
+}
+
+// cleanSchemaForDirectGemini 专门为直接Gemini渠道清理schema
+// 与VertexAI的清理逻辑分开，避免相互影响
+func (r *relayClaudeOnly) cleanSchemaForDirectGemini(schema interface{}) interface{} {
+	if schema == nil {
+		return schema
+	}
+
+	// 创建深拷贝避免修改原始数据
+	return r.deepCleanSchema(schema)
+}
+
+// deepCleanSchema 递归清理schema中Gemini API不支持的字段
+func (r *relayClaudeOnly) deepCleanSchema(obj interface{}) interface{} {
+	switch v := obj.(type) {
+	case map[string]interface{}:
+		// 创建新的map避免修改原始数据
+		cleaned := make(map[string]interface{})
+		for key, value := range v {
+			// 跳过Gemini API不支持的字段
+			if key == "$schema" || key == "additionalProperties" {
+				continue
+			}
+
+			// 处理format字段的限制
+			if key == "format" {
+				// Gemini API只支持STRING类型的"enum"和"date-time"格式
+				if formatStr, ok := value.(string); ok {
+					// 检查当前对象是否为string类型
+					if typeVal, exists := v["type"]; exists && typeVal == "string" {
+						// 只保留Gemini支持的format
+						if formatStr == "enum" || formatStr == "date-time" {
+							cleaned[key] = value
+						}
+						// 其他format（如uri、url、email等）直接跳过
+						continue
+					} else {
+						// 非string类型，保留format字段
+						cleaned[key] = r.deepCleanSchema(value)
+						continue
+					}
+				}
+			}
+
+			// 递归清理嵌套对象
+			cleaned[key] = r.deepCleanSchema(value)
+		}
+		return cleaned
+	case []interface{}:
+		// 递归清理数组中的每个元素
+		cleaned := make([]interface{}, len(v))
+		for i, item := range v {
+			cleaned[i] = r.deepCleanSchema(item)
+		}
+		return cleaned
+	default:
+		// 基本类型直接返回
+		return obj
+	}
 }
 
 // convertOpenAIResponseToClaude 将OpenAI响应转换为Claude格式
@@ -1423,7 +1726,8 @@ func (r *relayClaudeOnly) sendVertexAIGeminiWithClaudeFormat() (err *types.OpenA
 
 	// 2. 直接调用 VertexAI API（暂时使用现有的 provider，后续可以优化为直接 HTTP 调用）
 	// 为了保持兼容性，我们先转换为 OpenAI 格式，然后使用现有的 provider
-	openaiRequest, convertErr := r.convertClaudeToOpenAI()
+	// VertexAI 使用不清理schema的转换方法，因为后续会有专门的 CleanGeminiRequestData 处理
+	openaiRequest, convertErr := r.convertClaudeToOpenAIForVertexAI()
 	if convertErr != nil {
 		return convertErr, true
 	}
@@ -1654,7 +1958,7 @@ func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWi
 	}
 
 	if r.claudeRequest.Stream {
-		// 处理流式响应
+		// 处理流式响应 - 使用改进的手动转换逻辑，保持计费逻辑不变
 		var stream requester.StreamReaderInterface[string]
 		stream, err = geminiProvider.CreateChatCompletionStream(openaiRequest)
 		if err != nil {
@@ -1665,11 +1969,12 @@ func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWi
 			r.heartbeat.Stop()
 		}
 
-		// 转换OpenAI流式响应为Claude格式
-		firstResponseTime := r.convertOpenAIStreamToClaude(stream)
+		// 使用与 VertexAI 相同的 Transformer 架构，彻底解决重复响应问题
+		transformManager := transformer.CreateClaudeToVertexGeminiManager()
+		firstResponseTime := r.convertOpenAIStreamToClaudeWithTransformer(stream, transformManager)
 		r.SetFirstResponseTime(time.Unix(firstResponseTime, 0))
 	} else {
-		// 处理非流式响应
+		// 处理非流式响应 - 保持原有逻辑，确保计费正确
 		var openaiResponse *types.ChatCompletionResponse
 		openaiResponse, err = geminiProvider.CreateChatCompletion(openaiRequest)
 		if err != nil {
@@ -1680,7 +1985,7 @@ func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWi
 			r.heartbeat.Stop()
 		}
 
-		// 转换OpenAI响应为Claude格式
+		// 转换OpenAI响应为Claude格式 - 保持原有计费逻辑
 		claudeResponse := r.convertOpenAIResponseToClaude(openaiResponse)
 		openErr := responseJsonClient(r.c, claudeResponse)
 
@@ -1693,4 +1998,326 @@ func (r *relayClaudeOnly) sendGeminiWithClaudeFormat() (err *types.OpenAIErrorWi
 	}
 
 	return err, false
+}
+
+// convertOpenAIStreamToClaudeImproved 改进的流式转换，修复重复响应问题
+// 保持原有的计费逻辑不变，只修复状态管理问题
+func (r *relayClaudeOnly) convertOpenAIStreamToClaudeImproved(stream requester.StreamReaderInterface[string]) int64 {
+	r.c.Header("Content-Type", "text/event-stream")
+	r.c.Header("Cache-Control", "no-cache")
+	r.c.Header("Connection", "keep-alive")
+
+	flusher, ok := r.c.Writer.(http.Flusher)
+	if !ok {
+		logger.SysError("Streaming unsupported")
+		return 0
+	}
+
+	// 使用原子操作确保状态一致性
+	var (
+		streamFinished int32 = 0 // 流是否已结束
+		streamStarted  int32 = 0 // 流是否已开始
+		contentStarted int32 = 0 // 内容是否已开始
+	)
+
+	// 其他状态变量保持不变，用于计费逻辑
+	var (
+		messageId               = fmt.Sprintf("msg_%d", utils.GetTimestamp())
+		model                   = r.modelName
+		contentIndex            = 0
+		contentChunks           = 0
+		toolCallChunks          = 0
+		processedInThisChunk    = make(map[int]bool)
+		toolCallStatesForTokens = make(map[int]map[string]interface{})
+		lastUsage               map[string]interface{}
+	)
+
+	// 安全关闭函数
+	safeClose := func() {
+		// 使用原子操作确保只关闭一次
+		if atomic.CompareAndSwapInt32(&streamFinished, 0, 1) {
+			// 流已安全结束
+		}
+	}
+
+	defer safeClose()
+
+	var firstResponseTime int64
+	isFirst := true
+
+	dataChan, errChan := stream.Recv()
+
+streamLoop:
+	for {
+		// 检查流是否已结束
+		if atomic.LoadInt32(&streamFinished) == 1 {
+			break streamLoop
+		}
+
+		select {
+		case rawLine := <-dataChan:
+			if atomic.LoadInt32(&streamFinished) == 1 {
+				break streamLoop
+			}
+
+			if isFirst {
+				firstResponseTime = utils.GetTimestamp()
+				isFirst = false
+			}
+
+			// 使用原子操作确保只发送一次开始事件
+			if atomic.CompareAndSwapInt32(&streamStarted, 0, 1) {
+				messageStartJSON := fmt.Sprintf(`{"type":"message_start","message":{"id":"%s","type":"message","role":"assistant","content":[],"model":"%s","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}}}`, messageId, model)
+				r.writeSSEEventRawSafe("message_start", messageStartJSON)
+			}
+
+			// 处理流数据的逻辑保持不变，确保计费逻辑正确
+			var data string
+			if strings.HasPrefix(rawLine, "data: ") {
+				data = strings.TrimPrefix(rawLine, "data: ")
+				if data == "[DONE]" {
+					break streamLoop
+				}
+			} else if strings.TrimSpace(rawLine) != "" && strings.HasPrefix(rawLine, "{") {
+				data = rawLine
+			} else {
+				continue
+			}
+
+			var openaiChunk map[string]interface{}
+			if err := json.Unmarshal([]byte(data), &openaiChunk); err != nil {
+				continue
+			}
+
+			// 重置每个chunk的处理状态
+			processedInThisChunk = make(map[int]bool)
+
+			// 保存 usage 信息
+			if usage, usageExists := openaiChunk["usage"].(map[string]interface{}); usageExists {
+				lastUsage = usage
+			}
+
+			// 处理 choices（计费逻辑保持不变）
+			if choices, choicesExists := openaiChunk["choices"].([]interface{}); choicesExists {
+				for _, choice := range choices {
+					if choiceMap, ok := choice.(map[string]interface{}); ok {
+						// 处理文本内容
+						if delta, deltaExists := choiceMap["delta"].(map[string]interface{}); deltaExists {
+							if contentValue, contentExists := delta["content"]; contentExists && contentValue != nil {
+								if content, ok := contentValue.(string); ok && content != "" {
+									contentChunks++
+
+									// 累积文本内容到 TextBuilder 用于 token 计算（保持原有计费逻辑）
+									r.provider.GetUsage().TextBuilder.WriteString(content)
+
+									// 使用原子操作确保只发送一次内容开始事件
+									if atomic.CompareAndSwapInt32(&contentStarted, 0, 1) {
+										contentBlockStartJSON := fmt.Sprintf(`{"type":"content_block_start","index":%d,"content_block":{"type":"text","text":""}}`, contentIndex)
+										r.writeSSEEventRawSafe("content_block_start", contentBlockStartJSON)
+									}
+
+									// 发送内容增量事件
+									contentBytes, _ := json.Marshal(content)
+									contentBlockDeltaJSON := fmt.Sprintf(`{"type":"content_block_delta","index":%d,"delta":{"type":"text_delta","text":%s}}`, contentIndex, string(contentBytes))
+									r.writeSSEEventRawSafe("content_block_delta", contentBlockDeltaJSON)
+								}
+							}
+
+							// 处理工具调用（保持原有逻辑）
+							if toolCalls, toolExists := delta["tool_calls"].([]interface{}); toolExists {
+								toolCallChunks++
+								for _, toolCall := range toolCalls {
+									if toolCallMap, ok := toolCall.(map[string]interface{}); ok {
+										r.processToolCallDeltaImproved(toolCallMap, &contentIndex, flusher, processedInThisChunk, toolCallStatesForTokens)
+									}
+								}
+							}
+						}
+
+						// 处理结束原因 - 使用原子操作确保只处理一次
+						if finishReason, exists := choiceMap["finish_reason"].(string); exists && finishReason != "" {
+							if atomic.CompareAndSwapInt32(&streamFinished, 0, 1) {
+								r.handleStreamFinishImproved(finishReason, contentIndex, contentChunks, toolCallChunks, toolCallStatesForTokens, lastUsage, atomic.LoadInt32(&contentStarted) == 1)
+								break streamLoop
+							}
+						}
+					}
+				}
+			}
+
+		case err := <-errChan:
+			if err != nil {
+				if err.Error() == "EOF" {
+					// 使用原子操作确保只处理一次EOF
+					if atomic.CompareAndSwapInt32(&streamFinished, 0, 1) {
+						r.handleStreamFinishImproved("end_turn", contentIndex, contentChunks, toolCallChunks, toolCallStatesForTokens, lastUsage, atomic.LoadInt32(&contentStarted) == 1)
+					}
+				}
+				break streamLoop
+			}
+		}
+	}
+
+	return firstResponseTime
+}
+
+// writeSSEEventRawSafe 安全的SSE事件写入，检查连接状态
+func (r *relayClaudeOnly) writeSSEEventRawSafe(eventType, jsonData string) {
+	// 检查客户端连接状态
+	select {
+	case <-r.c.Request.Context().Done():
+		// 客户端已断开连接
+		return
+	default:
+		// 连接正常，继续处理
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			// 发生panic，可能是连接已断开
+		}
+	}()
+
+	_, err := fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, jsonData)
+	if err != nil {
+		// 写入失败，可能是连接已断开
+		return
+	}
+
+	// 立即flush数据
+	if flusher, ok := r.c.Writer.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+// processToolCallDeltaImproved 改进的工具调用处理，保持计费逻辑
+func (r *relayClaudeOnly) processToolCallDeltaImproved(toolCallMap map[string]interface{}, contentIndex *int, flusher http.Flusher, processedInThisChunk map[int]bool, toolCallStatesForTokens map[int]map[string]interface{}) {
+	// 保持原有的工具调用处理逻辑，确保计费正确
+	if index, indexExists := toolCallMap["index"].(float64); indexExists {
+		toolCallIndex := int(index)
+
+		if !processedInThisChunk[toolCallIndex] {
+			processedInThisChunk[toolCallIndex] = true
+
+			if _, exists := toolCallStatesForTokens[toolCallIndex]; !exists {
+				toolCallStatesForTokens[toolCallIndex] = make(map[string]interface{})
+				toolCallStatesForTokens[toolCallIndex]["name"] = ""
+				toolCallStatesForTokens[toolCallIndex]["arguments"] = ""
+
+				*contentIndex++
+				contentBlockStartJSON := fmt.Sprintf(`{"type":"content_block_start","index":%d,"content_block":{"type":"tool_use","id":"toolu_%d","name":"","input":{}}}`, *contentIndex, toolCallIndex)
+				r.writeSSEEventRawSafe("content_block_start", contentBlockStartJSON)
+			}
+
+			if function, functionExists := toolCallMap["function"].(map[string]interface{}); functionExists {
+				if name, nameExists := function["name"].(string); nameExists && name != "" {
+					toolCallStatesForTokens[toolCallIndex]["name"] = name
+				}
+
+				if args, argsExists := function["arguments"].(string); argsExists {
+					arguments := toolCallStatesForTokens[toolCallIndex]["arguments"].(string) + args
+					toolCallStatesForTokens[toolCallIndex]["arguments"] = arguments
+
+					contentBlockDelta := map[string]interface{}{
+						"type":  "content_block_delta",
+						"index": *contentIndex,
+						"delta": map[string]interface{}{
+							"type":         "input_json_delta",
+							"partial_json": args,
+						},
+					}
+					r.writeSSEEventSafe("content_block_delta", contentBlockDelta)
+					flusher.Flush()
+				}
+			}
+		}
+	}
+}
+
+// writeSSEEventSafe 安全的SSE事件写入（结构化数据）
+func (r *relayClaudeOnly) writeSSEEventSafe(eventType string, data interface{}) {
+	select {
+	case <-r.c.Request.Context().Done():
+		return
+	default:
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			// 发生panic，忽略
+		}
+	}()
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	fmt.Fprintf(r.c.Writer, "event: %s\ndata: %s\n\n", eventType, string(jsonData))
+}
+
+// handleStreamFinishImproved 改进的流结束处理，确保只执行一次
+func (r *relayClaudeOnly) handleStreamFinishImproved(finishReason string, contentIndex, contentChunks, toolCallChunks int, toolCallStatesForTokens map[int]map[string]interface{}, lastUsage map[string]interface{}, hasContentStarted bool) {
+	// 发送content_block_stop事件
+	if hasContentStarted || toolCallChunks > 0 {
+		contentBlockStopJSON := fmt.Sprintf(`{"type":"content_block_stop","index":%d}`, contentIndex)
+		r.writeSSEEventRawSafe("content_block_stop", contentBlockStopJSON)
+	}
+
+	// 转换停止原因
+	claudeStopReason := "end_turn"
+	switch finishReason {
+	case "stop":
+		claudeStopReason = "end_turn"
+	case "length":
+		claudeStopReason = "max_tokens"
+	case "tool_calls":
+		claudeStopReason = "tool_use"
+	case "content_filter":
+		claudeStopReason = "stop_sequence"
+	}
+
+	// 处理usage信息（保持原有计费逻辑）
+	var messageDeltaJSON string
+	if lastUsage != nil {
+		if inputTokens, inputExists := lastUsage["prompt_tokens"].(float64); inputExists {
+			if outputTokens, outputExists := lastUsage["completion_tokens"].(float64); outputExists {
+				messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, claudeStopReason, int(inputTokens), int(outputTokens))
+			}
+		}
+	}
+
+	if messageDeltaJSON == "" {
+		// 如果没有usage信息，计算工具调用和文本内容的 tokens（保持原有逻辑）
+		currentUsage := r.provider.GetUsage()
+		estimatedOutputTokens := 0
+
+		// 计算工具调用 tokens
+		for _, toolCallState := range toolCallStatesForTokens {
+			if name, nameExists := toolCallState["name"]; nameExists {
+				args := toolCallState["arguments"]
+				if name != "" {
+					toolCallText := fmt.Sprintf("tool_use:%s:%s", name, args)
+					tokens := common.CountTokenText(toolCallText, r.modelName)
+					estimatedOutputTokens += tokens
+				}
+			}
+		}
+
+		// 累加文本内容的 tokens
+		if currentUsage.TextBuilder.Len() > 0 {
+			textTokens := common.CountTokenText(currentUsage.TextBuilder.String(), r.modelName)
+			estimatedOutputTokens += textTokens
+		}
+
+		// 更新 Provider 的 Usage
+		currentUsage.CompletionTokens = estimatedOutputTokens
+		currentUsage.TotalTokens = currentUsage.PromptTokens + estimatedOutputTokens
+
+		messageDeltaJSON = fmt.Sprintf(`{"type":"message_delta","delta":{"stop_reason":"%s","stop_sequence":null},"usage":{"input_tokens":%d,"output_tokens":%d}}`, claudeStopReason, currentUsage.PromptTokens, estimatedOutputTokens)
+	}
+
+	// 发送结束事件
+	r.writeSSEEventRawSafe("message_delta", messageDeltaJSON)
+	r.writeSSEEventRawSafe("message_stop", `{"type":"message_stop"}`)
 }
