@@ -407,6 +407,20 @@ func removeAdditionalPropertiesWithDepth(schema interface{}, depth int) interfac
 	}
 
 	delete(v, "title")
+	// 删除 $schema 字段，因为 Gemini API 不支持
+	delete(v, "$schema")
+
+	// 处理format字段的限制 - Gemini API只支持STRING类型的"enum"和"date-time"格式
+	if formatVal, exists := v["format"]; exists {
+		if formatStr, ok := formatVal.(string); ok {
+			if typeVal, typeExists := v["type"]; typeExists && typeVal == "string" {
+				// 只保留Gemini支持的format
+				if formatStr != "enum" && formatStr != "date-time" {
+					delete(v, "format")
+				}
+			}
+		}
+	}
 
 	switch v["type"] {
 	case "object":

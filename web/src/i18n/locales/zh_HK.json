@@ -794,6 +794,11 @@
     "testClick": "點擊測速（僅支持chat模型）"
   },
   "setting": "設定",
+  "theme": {
+    "auto": "跟隨系統",
+    "light": "淺色模式",
+    "dark": "深色模式"
+  },
   "setting_index": {
     "operationSettings": {
       "chatLinkSettings": {
@@ -831,7 +836,9 @@
           "label": "重試超時時間(秒)",
           "placeholder": "重試超時時間(秒)"
         },
-        "emptyResponseBilling": "空回覆計費"
+        "emptyResponseBilling": "空回覆計費",
+        "unifiedRequestResponseModel": "統一請求響應模型",
+        "unifiedRequestResponseModelTooltip": "當存在模型映射時，響應中的model值為請求的model值，而非實際調用的模型名稱"
       },
       "logSettings": {
         "clearLogs": "清理歷史日誌",

@@ -679,6 +679,15 @@ func OpenAIToGeminiChatContent(openaiContents []types.ChatCompletionMessage) ([]
 				}
 			}
 		}
+
+		// 确保每个消息至少有一个 part，避免 Gemini API 错误
+		if len(content.Parts) == 0 {
+			// 如果没有任何 parts，添加一个空文本 part
+			content.Parts = append(content.Parts, GeminiPart{
+				Text: " ", // 使用空格而不是空字符串
+			})
+		}
+
 		contents = append(contents, content)
 
 	}

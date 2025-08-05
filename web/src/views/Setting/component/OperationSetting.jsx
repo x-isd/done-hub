@@ -13,7 +13,8 @@ import {
   OutlinedInput,
   Select,
   Stack,
-  TextField
+  TextField,
+  Tooltip
 } from '@mui/material'
 import { showError, showSuccess, verifyJSON } from 'utils/common'
 import { API } from 'utils/api'
@@ -549,17 +550,24 @@ const OperationSetting = () => {
                 />
               }
             />
-            <FormControlLabel
-              label={t('setting_index.operationSettings.generalSettings.unifiedRequestResponseModel')}
-              control={
-                <Checkbox
-                  checked={dataLoaded ? inputs.UnifiedRequestResponseModelEnabled === 'true' : false}
-                  onChange={handleInputChange}
-                  name="UnifiedRequestResponseModelEnabled"
-                  disabled={!dataLoaded || loading}
-                />
-              }
-            />
+            <Tooltip
+              title={t('setting_index.operationSettings.generalSettings.unifiedRequestResponseModelTooltip')}
+              placement="top"
+              enterDelay={300}
+              arrow
+            >
+              <FormControlLabel
+                label={t('setting_index.operationSettings.generalSettings.unifiedRequestResponseModel')}
+                control={
+                  <Checkbox
+                    checked={dataLoaded ? inputs.UnifiedRequestResponseModelEnabled === 'true' : false}
+                    onChange={handleInputChange}
+                    name="UnifiedRequestResponseModelEnabled"
+                    disabled={!dataLoaded || loading}
+                  />
+                }
+              />
+            </Tooltip>
           </Stack>
           <Button
             variant="contained"

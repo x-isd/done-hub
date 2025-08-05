@@ -526,9 +526,14 @@ func (t *ClaudeTransformer) TransformStreamResponseIn(response *http.Response) (
 					// 如果没有usage信息，尝试使用累积的 tokens
 					estimatedOutputTokens := toolCallTokens
 
-					// 累加文本内容的 tokens
+					// 累加文本内容的 tokens - 使用正确的模型名称
 					if textBuilder.Len() > 0 {
-						textTokens := common.CountTokenText(textBuilder.String(), "gpt-3.5-turbo")
+						// 从 chunk 中获取模型名称，如果没有则使用默认值
+						modelName := "gpt-3.5-turbo"
+						if chunk.Model != "" {
+							modelName = chunk.Model
+						}
+						textTokens := common.CountTokenText(textBuilder.String(), modelName)
 						estimatedOutputTokens += textTokens
 					}
 
